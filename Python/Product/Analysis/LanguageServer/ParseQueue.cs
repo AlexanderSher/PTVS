@@ -32,13 +32,13 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         public const string PythonParserSource = "Python";
         private const string TaskCommentSource = "Task comment";
 
-        private readonly ConcurrentDictionary<IDocument, Task<IAnalysisCookie>> _parsing;
+        private readonly ConcurrentDictionary<IDocument, ParsingWorkItem> _parsing;
 
         private readonly VolatileCounter _parsingInProgress;
 
         public ParseQueue() {
             _parsingInProgress = new VolatileCounter();
-            _parsing = new ConcurrentDictionary<IDocument, Task<IAnalysisCookie>>();
+            _parsing = new ConcurrentDictionary<IDocument, ParsingWorkItem>();
         }
 
         public int Count => _parsingInProgress.Count;
@@ -62,13 +62,10 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
             (doc as IPythonProjectEntry)?.BeginParsingTree();
             _parsingInProgress.Increment();
 
-            Task<IAnalysisCookie> result = null;
+            ParsingWorkItem result = null;
             try {
-                result = _parsing.AddOrUpdate(doc,
-                    _ => ParseAndClearEntry(doc, languageVersion, null),
-                    (_, prev) => ParseAndClearEntry(doc, languageVersion, prev)
-                );
-                return result;
+                result = _parsing.AddOrUpdate(doc, _ => new ParsingWorkItem(this, null), (_, prev) => new ParsingWorkItem(this, prev));
+                return result.Start(doc, languageVersion);
             } finally {
                 if (result == null) {
                     AbortParsingTree(doc as IPythonProjectEntry);
@@ -77,26 +74,34 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
             }
         }
 
-        private Task<IAnalysisCookie> ParseAndClearEntry(IDocument doc, PythonLanguageVersion languageVersion, Task<IAnalysisCookie> previousTask) {
-            var task = Parse(doc, languageVersion, previousTask);
-            task.ContinueWith(_ => _parsing.TryUpdate(doc, null, task));
-            return task;
-        }
+        private class ParsingWorkItem {
+            private readonly ParseQueue _queue;
+            private readonly ParsingWorkItem _previous;
+            private readonly TaskCompletionSource<IAnalysisCookie> _tcs;
 
-        private async Task<IAnalysisCookie> Parse(IDocument doc, PythonLanguageVersion languageVersion, Task<IAnalysisCookie> previousTask) {
-            if (previousTask != null) {
-                try {
-                    await previousTask.ConfigureAwait(false);
-                } catch {
-                    // Don't care about any errors in the previous task.
-                    // We just do not want to start until it is finished.
-                }
+            public ParsingWorkItem(ParseQueue queue, ParsingWorkItem previous) {
+                _queue = queue;
+                _previous = previous;
+                _tcs = new TaskCompletionSource<IAnalysisCookie>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
-            return await Task.Factory.StartNew(
-                () => ParseWorker(doc, languageVersion),
-                TaskCreationOptions.RunContinuationsAsynchronously
-            ).ConfigureAwait(false);
+            public Task<IAnalysisCookie> Start(IDocument doc, PythonLanguageVersion languageVersion) {
+                if (_previous != null) {
+                    _previous._tcs.Task.ContinueWith(_ => Parse(doc, languageVersion));
+                } else {
+                    Task.Run(() => Parse(doc, languageVersion));
+                }
+
+                return _tcs.Task;
+            }
+
+            private void Parse(IDocument doc, PythonLanguageVersion languageVersion) {
+                try {
+                    _tcs.TrySetResult(_queue.ParseWorker(doc, languageVersion));
+                } catch (Exception ex) {
+                    _tcs.TrySetException(ex);
+                }
+            }
         }
 
         private IAnalysisCookie ParseWorker(IDocument doc, PythonLanguageVersion languageVersion) {
