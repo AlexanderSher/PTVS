@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using FluentAssertions;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Interpreter.Ast;
 using Microsoft.PythonTools.Parsing;
@@ -53,7 +54,7 @@ namespace AnalysisTests {
 
         private static void AssertTransform(string expr, params string[] steps) {
             var ta = Parse(expr);
-            AssertUtil.AreEqual(ta.GetTransformSteps(), steps);
+            ta.GetTransformSteps().Should().Equal(steps);
         }
 
         private static void AssertConvert(string expr, string expected = null) {

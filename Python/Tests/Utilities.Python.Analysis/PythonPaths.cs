@@ -129,7 +129,7 @@ namespace TestUtilities {
                         "Python {0} {1}".FormatInvariant(arch, ver),
                         prefixPath,
                         exePath,
-                        pathVar: CPythonInterpreterFactoryConstants.PathEnvironmentVariableName,
+                        pathVar: "PYTHONPATH",
                         arch: arch,
                         version: ver
                     ));

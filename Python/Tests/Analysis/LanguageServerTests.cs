@@ -22,11 +22,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
+using Microsoft.Python.Tests.Utilities.FluentAssertions;
 using Microsoft.PythonTools;
 using Microsoft.PythonTools.Analysis;
+using Microsoft.PythonTools.Analysis.Infrastructure;
 using Microsoft.PythonTools.Analysis.LanguageServer;
 using Microsoft.PythonTools.Analysis.LanguageServer.Extensibility;
-using Microsoft.PythonTools.Infrastructure;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Interpreter.Ast;
 using Microsoft.PythonTools.Parsing;
@@ -42,44 +44,44 @@ namespace AnalysisTests {
         [TestCleanup]
         public void TestCleanup() => TestEnvironmentImpl.TestCleanup();
 
-        public static PythonVersion DefaultV3 {
+        public static InterpreterConfiguration DefaultV3 {
             get {
-                var ver = PythonPaths.Python36_x64 ?? PythonPaths.Python36 ??
-                    PythonPaths.Python35_x64 ?? PythonPaths.Python35;
+                var ver = PythonVersions.Python36_x64 ?? PythonVersions.Python36 ??
+                          PythonVersions.Python35_x64 ?? PythonVersions.Python35;
                 ver.AssertInstalled();
                 return ver;
             }
         }
 
-        public static PythonVersion DefaultV2 {
+        public static InterpreterConfiguration DefaultV2 {
             get {
-                var ver = PythonPaths.Python27_x64 ?? PythonPaths.Python27;
+                var ver = PythonVersions.Python27_x64 ?? PythonVersions.Python27;
                 ver.AssertInstalled();
                 return ver;
             }
         }
 
-        protected virtual PythonVersion Default => DefaultV3;
+        protected virtual InterpreterConfiguration Default => DefaultV3;
         protected virtual BuiltinTypeId BuiltinTypeId_Str => BuiltinTypeId.Unicode;
 
         public Task<Server> CreateServer() {
             return CreateServer((Uri)null, Default);
         }
 
-        public Task<Server> CreateServer(string rootPath, PythonVersion version = null, Dictionary<Uri, PublishDiagnosticsEventArgs> diagnosticEvents = null) {
-            return CreateServer(string.IsNullOrEmpty(rootPath) ? null : new Uri(rootPath), version ?? Default, diagnosticEvents);
+        public Task<Server> CreateServer(string rootPath, InterpreterConfiguration configuration = null, Dictionary<Uri, PublishDiagnosticsEventArgs> diagnosticEvents = null) {
+            return CreateServer(string.IsNullOrEmpty(rootPath) ? null : new Uri(rootPath), configuration ?? Default, diagnosticEvents);
         }
 
-        public async Task<Server> CreateServer(Uri rootUri, PythonVersion version = null, Dictionary<Uri, PublishDiagnosticsEventArgs> diagnosticEvents = null) {
-            version = version ?? Default;
-            version.AssertInstalled();
+        public async Task<Server> CreateServer(Uri rootUri, InterpreterConfiguration configuration = null, Dictionary<Uri, PublishDiagnosticsEventArgs> diagnosticEvents = null) {
+            configuration = configuration ?? Default;
+            configuration.AssertInstalled();
             var s = new Server();
             s.OnLogMessage += Server_OnLogMessage;
             var properties = new InterpreterFactoryCreationOptions {
                 TraceLevel = System.Diagnostics.TraceLevel.Verbose,
-                DatabasePath = TestData.GetTempPath($"AstAnalysisCache{version.Version}")
+                DatabasePath = TestData.GetTempPath($"AstAnalysisCache{configuration.Version}")
             }.ToDictionary();
-            version.Configuration.WriteToDictionary(properties);
+            configuration.WriteToDictionary(properties);
 
             await s.Initialize(new InitializeParams {
                 rootUri = rootUri,
@@ -157,7 +159,7 @@ namespace AnalysisTests {
             var s = await CreateServer(TestData.GetPath(@"TestData\HelloWorld"));
 
             var u = GetDocument(@"TestData\HelloWorld\Program.py").uri.AbsoluteUri;
-            AssertUtil.ContainsExactly(s.GetLoadedFiles(), u);
+            s.GetLoadedFiles().Should().OnlyContain(u);
         }
 
         [TestMethod, Priority(0)]
@@ -165,10 +167,10 @@ namespace AnalysisTests {
             var s = await CreateServer(TestData.GetPath(@"TestData\HelloWorld"));
 
             var u = await AddModule(s, "a = 1", "mod");
-            AssertUtil.ContainsAtLeast(s.GetLoadedFiles(), u.AbsoluteUri);
+            s.GetLoadedFiles().Should().Contain(u.AbsoluteUri);
 
-            Assert.IsTrue(await s.UnloadFileAsync(u));
-            AssertUtil.DoesntContain(s.GetLoadedFiles(), u.AbsoluteUri);
+            (await s.UnloadFileAsync(u)).Should().BeTrue();
+            s.GetLoadedFiles().Should().NotContain(u.AbsoluteUri);
         }
 
         [TestMethod, Priority(0)]
@@ -668,7 +670,7 @@ def f(a, *b, **c): pass
                 new string[0]
             );
 
-            if (Default.Configuration.Version.Major != 3) {
+            if (Default.Version.Major != 3) {
                 return;
             }
 
@@ -874,18 +876,18 @@ datetime.datetime.now().day
             var modP2 = new Uri(mod, "#2");
             var modP3 = new Uri(mod, "#3");
 
-            await AssertCompletion(s, mod, new[] { "x" }, Enumerable.Empty<string>());
+            await AssertCompletion(s, mod, new[] { "x" }, null);
 
             Assert.AreEqual(Tuple.Create("y = 2", 1), await ApplyChange(s, modP2, DocumentChange.Insert("y = 2", SourceLocation.MinValue)));
             await s.WaitForCompleteAnalysisAsync();
 
-            await AssertCompletion(s, modP2, new[] { "x", "y" }, Enumerable.Empty<string>());
+            await AssertCompletion(s, modP2, new[] { "x", "y" }, null);
 
             Assert.AreEqual(Tuple.Create("z = 3", 1), await ApplyChange(s, modP3, DocumentChange.Insert("z = 3", SourceLocation.MinValue)));
             await s.WaitForCompleteAnalysisAsync();
 
-            await AssertCompletion(s, modP3, new[] { "x", "y", "z" }, Enumerable.Empty<string>());
-            await AssertCompletion(s, mod, new[] { "x", "y", "z" }, Enumerable.Empty<string>());
+            await AssertCompletion(s, modP3, new[] { "x", "y", "z" }, null);
+            await AssertCompletion(s, mod, new[] { "x", "y", "z" }, null);
 
             await ApplyChange(s, mod, DocumentChange.Delete(SourceLocation.MinValue, SourceLocation.MinValue.AddColumns(5)));
             await s.WaitForCompleteAnalysisAsync();
@@ -911,8 +913,7 @@ datetime.datetime.now().day
             var u = await AddModule(s, "def f(/)\n    error text\n");
             await s.WaitForCompleteAnalysisAsync();
 
-            AssertUtil.ContainsExactly(
-                GetDiagnostics(diags, u),
+            GetDiagnostics(diags, u).Should().OnlyContain(
                 "Error;unexpected token '/';Python (parser);0;6;7",
                 "Error;invalid parameter;Python (parser);0;6;7",
                 "Error;unexpected token '<newline>';Python (parser);0;8;4",
@@ -951,9 +952,9 @@ datetime.datetime.now().day
 
                 var messages = GetDiagnostics(diags, mod).ToArray();
                 if (tc == DiagnosticSeverity.Unspecified) {
-                    AssertUtil.ContainsExactly(messages);
+                    messages.Should().BeEmpty();
                 } else {
-                    AssertUtil.ContainsExactly(messages, $"{tc};inconsistent whitespace;Python (parser);2;0;1");
+                    messages.Should().OnlyContain($"{tc};inconsistent whitespace;Python (parser);2;0;1");
                 }
 
                 await s.UnloadFileAsync(mod);
@@ -968,8 +969,7 @@ datetime.datetime.now().day
             var u = await AddModule(s, "y\nx x");
             await s.WaitForCompleteAnalysisAsync();
 
-            AssertUtil.ContainsExactly(
-                GetDiagnostics(diags, u),
+            GetDiagnostics(diags, u).Should().OnlyContain(
                 "Warning;unknown variable 'y';Python (analysis);0;0;1",
                 "Warning;unknown variable 'x';Python (analysis);1;0;1",
                 "Error;unexpected token 'x';Python (parser);1;2;3"
@@ -1028,19 +1028,18 @@ datetime.datetime.now().day
                 properties = new Dictionary<string, object> { ["typeid"] = BuiltinTypeId.Int.ToString() }
             });
 
-            List<string> res;
             var cmd = new ExtensionCommandParams {
                 extensionName = "getall",
                 command = "Int",
                 properties = new Dictionary<string, object> { ["uri"] = u.AbsoluteUri, ["line"] = 1, ["column"] = 1 }
             };
 
-            res = (await s.ExtensionCommand(cmd)).properties?["names"] as List<string>;
-            Assert.IsNotNull(res);
-            AssertUtil.ContainsExactly(res, "x", "y");
+            var res = (await s.ExtensionCommand(cmd)).properties?["names"];
+            res.Should().BeOfType<List<string>>().Which.Should().OnlyContain("x", "y");
+
             cmd.command = BuiltinTypeId_Str.ToString();
-            res = (await s.ExtensionCommand(cmd)).properties?["names"] as List<string>;
-            Assert.IsNull(res);
+            res = (await s.ExtensionCommand(cmd)).properties?["names"];
+            res.Should().BeNull();
 
             await s.LoadExtension(new PythonAnalysisExtensionParams {
                 assembly = typeof(GetAllExtensionProvider).Assembly.FullName,
@@ -1049,14 +1048,13 @@ datetime.datetime.now().day
             });
 
             cmd.command = BuiltinTypeId_Str.ToString();
-            res = (await s.ExtensionCommand(cmd)).properties?["names"] as List<string>;
-            Assert.IsNotNull(res);
-            AssertUtil.ContainsAtLeast(res, "z", "__name__", "__file__");
-            cmd.command = "Int";
-            res = (await s.ExtensionCommand(cmd)).properties?["names"] as List<string>;
-            Assert.IsNull(res);
-        }
+            res = (await s.ExtensionCommand(cmd)).properties?["names"];
+            res.Should().BeOfType<List<string>>().Which.Should().Contain("z", "__name__", "__file__");
 
+            cmd.command = "Int";
+            res = (await s.ExtensionCommand(cmd)).properties?["names"];
+            res.Should().BeNull();
+        }
 
         private static IEnumerable<string> GetDiagnostics(Dictionary<Uri, PublishDiagnosticsEventArgs> events, Uri uri) {
             return events[uri].diagnostics
@@ -1064,7 +1062,7 @@ datetime.datetime.now().day
                 .Select(d => $"{d.severity};{d.message};{d.source};{d.range.start.line};{d.range.start.character};{d.range.end.character}");
         }
 
-        public static async Task AssertCompletion(Server s, TextDocumentIdentifier document, IEnumerable<string> contains, IEnumerable<string> excludes, Position? position = null, CompletionContext? context = null, Func<CompletionItem, string> cmpKey = null, string expr = null, Range? applicableSpan = null) {
+        public static async Task AssertCompletion(Server s, TextDocumentIdentifier document, IReadOnlyCollection<string> contains, IReadOnlyCollection<string> excludes, Position? position = null, CompletionContext? context = null, Func<CompletionItem, string> cmpKey = null, string expr = null, Range? applicableSpan = null) {
             var res = await s.Completion(new CompletionParams {
                 textDocument = document,
                 position = position ?? new Position(),
@@ -1074,13 +1072,18 @@ datetime.datetime.now().day
             DumpDetails(res);
 
             cmpKey = cmpKey ?? (c => c.insertText);
-            AssertUtil.CheckCollection(
-                res.items?.Select(cmpKey),
-                contains,
-                excludes
-            );
+            var items = res.items?.Select(cmpKey).ToList() ?? new List<string>();
+            
+            if (contains != null && contains.Any()) {
+                items.Should().Contain(contains);
+            }
+
+            if (excludes != null && excludes.Any()) {
+                items.Should().NotContain(excludes);
+            }
+
             if (applicableSpan.HasValue) {
-                Assert.AreEqual(applicableSpan, res._applicableSpan);
+                res._applicableSpan.Should().Be(applicableSpan);
             }
         }
 
@@ -1106,18 +1109,23 @@ datetime.datetime.now().day
             }
         }
 
-        public static async Task AssertSignature(Server s, TextDocumentIdentifier document, SourceLocation position, IEnumerable<string> contains, IEnumerable<string> excludes, string expr = null) {
+        public static async Task AssertSignature(Server s, TextDocumentIdentifier document, SourceLocation position, IReadOnlyCollection<string> contains, IReadOnlyCollection<string> excludes, string expr = null) {
             var sigs = (await s.SignatureHelp(new TextDocumentPositionParams {
                 textDocument = document,
                 position = position,
                 _expr = expr
             })).signatures;
 
-            AssertUtil.CheckCollection(
-                sigs.Select(sig => sig.label),
-                contains,
-                excludes
-            );
+            var labels = sigs.Select(sig => sig.label).ToList();
+            
+            
+            if (contains != null && contains.Any()) {
+                labels.Should().Contain(contains);
+            }
+
+            if (excludes != null && excludes.Any()) {
+                labels.Should().NotContain(excludes);
+            }
         }
 
         public static async Task AssertHover(Server s, TextDocumentIdentifier document, SourceLocation position, string hoverText, IEnumerable<string> typeNames, SourceSpan? range = null, string expr = null) {
@@ -1136,10 +1144,10 @@ datetime.datetime.now().day
                 Assert.AreEqual(hoverText, hover.contents.value);
             }
             if (typeNames != null) {
-                AssertUtil.ContainsExactly(hover._typeNames, typeNames.ToArray());
+                hover._typeNames.Should().OnlyContain(typeNames.ToArray());
             }
             if (range.HasValue) {
-                Assert.AreEqual(range.Value, (SourceSpan)hover.range);
+                hover.range.Should().Be((Range?)range);
             }
         }
 
@@ -1154,19 +1162,13 @@ datetime.datetime.now().day
                 }
             }));
 
-            var set = refs.Select(r => $"{r._kind ?? ReferenceKind.Reference};{r.range}");
-
-            AssertUtil.CheckCollection(
-                set,
-                contains,
-                excludes
-            );
+            refs.Select(r => $"{r._kind ?? ReferenceKind.Reference};{r.range}").Should().Contain(contains).And.NotContain(excludes);
         }
     }
 
     [TestClass]
     public class LanguageServerTests_V2 : LanguageServerTests {
-        protected override PythonVersion Default => DefaultV2;
+        protected override InterpreterConfiguration Default => DefaultV2;
         protected override BuiltinTypeId BuiltinTypeId_Str => BuiltinTypeId.Bytes;
 
     }

@@ -113,6 +113,7 @@ namespace Microsoft.PythonTools.Interpreter.Ast {
             _childModules = new List<string>();
             _foundChildModules = true;
             _members = new Dictionary<string, IMember>();
+            ParseErrors = Enumerable.Empty<string>();
         }
 
         internal AstPythonModule(string moduleName, IPythonInterpreter interpreter, PythonAst ast, string filePath, IEnumerable<string> parseErrors) {

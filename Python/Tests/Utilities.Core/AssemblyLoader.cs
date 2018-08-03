@@ -20,7 +20,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using FluentAssertions.Execution;
 
 namespace TestUtilities {
     public sealed class AssemblyLoader : IDisposable {
@@ -50,7 +50,7 @@ namespace TestUtilities {
                     ?? Assembly.Load(new AssemblyName { Name = assemblyName });
 
                 if (loadedAssembly == null) {
-                    throw new AssertFailedException($"Can't find {assemblyName} assembly");
+                    Execute.Assertion.FailWith($"Can't find {assemblyName} assembly");
                 }
 
                 loadedAssembly.GetTypes();

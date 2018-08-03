@@ -14,19 +14,10 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Numerics;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.PythonTools.Parsing;
-using Microsoft.PythonTools.Parsing.Ast;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestUtilities;
-using TestUtilities.Python;
 
 namespace AnalysisTests {
     /// <summary>
@@ -55,8 +46,5 @@ namespace AnalysisTests {
 
         private static Stream MakeStream(byte[] content) 
             => new MemoryStream(content);
-
-        private static Stream MakeStream(string content, Encoding encoding)
-            => MakeStream(encoding.GetBytes(content));
     }
 }

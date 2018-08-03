@@ -32,9 +32,9 @@ namespace Microsoft.PythonTools.Analysis.Infrastructure {
 
         private static void ValidateFormatString(string str, int argCount) {
             foreach (Match m in SubstitutionRegex.Matches(str)) {
-                int index = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                int index = Int32.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
                 if (index >= argCount) {
-                    Debug.Fail(string.Format(CultureInfo.InvariantCulture, "Format string expects more than {0} args.\n\n{1}", argCount, str));
+                    Debug.Fail(String.Format(CultureInfo.InvariantCulture, "Format string expects more than {0} args.\n\n{1}", argCount, str));
                 }
             }
         }
@@ -45,48 +45,53 @@ namespace Microsoft.PythonTools.Analysis.Infrastructure {
 
         public static string FormatUI(this string str, object arg0) {
             ValidateFormatString(str, 1);
-            return string.Format(CultureInfo.CurrentCulture, str, arg0);
+            return String.Format(CultureInfo.CurrentCulture, str, arg0);
         }
 
         public static string FormatUI(this string str, object arg0, object arg1) {
             ValidateFormatString(str, 2);
-            return string.Format(CultureInfo.CurrentCulture, str, arg0, arg1);
+            return String.Format(CultureInfo.CurrentCulture, str, arg0, arg1);
         }
 
         public static string FormatUI(this string str, params object[] args) {
             ValidateFormatString(str, args.Length);
-            return string.Format(CultureInfo.CurrentCulture, str, args);
+            return String.Format(CultureInfo.CurrentCulture, str, args);
         }
 
         public static string FormatInvariant(this string str, object arg0) {
             ValidateFormatString(str, 1);
-            return string.Format(CultureInfo.InvariantCulture, str, arg0);
+            return String.Format(CultureInfo.InvariantCulture, str, arg0);
         }
 
         public static string FormatInvariant(this string str, object arg0, object arg1) {
             ValidateFormatString(str, 2);
-            return string.Format(CultureInfo.InvariantCulture, str, arg0, arg1);
+            return String.Format(CultureInfo.InvariantCulture, str, arg0, arg1);
         }
 
         public static string FormatInvariant(this string str, params object[] args) {
             ValidateFormatString(str, args.Length);
-            return string.Format(CultureInfo.InvariantCulture, str, args);
+            return String.Format(CultureInfo.InvariantCulture, str, args);
+        }
+        
+        public static int IndexOfEnd(this string s, string substring, StringComparison comparisonType = StringComparison.Ordinal) {
+            var i = s.IndexOf(substring, comparisonType);
+            return i < 0 ? i : i + substring.Length;
         }
 
         public static bool IsTrue(this string str) {
             bool asBool;
-            return !string.IsNullOrWhiteSpace(str) && (
+            return !String.IsNullOrWhiteSpace(str) && (
                 str.Equals("1", StringComparison.Ordinal) ||
                 str.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-                (bool.TryParse(str, out asBool) && asBool)
+                (Boolean.TryParse(str, out asBool) && asBool)
             );
         }
 
         public static string AsQuotedArguments(this IEnumerable<string> args) {
-            return string.Join(" ", args.Select(QuoteArgument).Where(a => !string.IsNullOrEmpty(a)));
+            return String.Join(" ", args.Select(QuoteArgument).Where(a => !String.IsNullOrEmpty(a)));
         }
 
-        private static IEnumerable<int> FindUnescapedChar(string s, char c, int start = 0, int end = int.MaxValue) {
+        private static IEnumerable<int> FindUnescapedChar(string s, char c, int start = 0, int end = Int32.MaxValue) {
             start -= 1;
             while ((start = s.IndexOf(c, start + 1)) > 0 && start < end) {
                 if (s[start - 1] != '\\') {
@@ -101,7 +106,7 @@ namespace Microsoft.PythonTools.Analysis.Infrastructure {
                 return null;
             }
 
-            if (string.IsNullOrEmpty(arg)) {
+            if (String.IsNullOrEmpty(arg)) {
                 // Empty string means empty argument
                 return "\"\"";
             }

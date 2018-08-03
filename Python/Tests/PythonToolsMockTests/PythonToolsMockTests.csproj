@@ -142,6 +142,10 @@
       <Project>{D092D54E-FF29-4D32-9AEE-4EF704C92F67}</Project>
       <Name>TestUtilities</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Utilities.Core\Tests.Utilities.Core.NetStandard.csproj">
+      <Project>{A79231E6-C399-4798-8B74-F46C5CBA7FF9}</Project>
+      <Name>Tests.Utilities.Core.NetStandard</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Utilities.Python.Analysis\TestUtilities.Python.Analysis.csproj">
       <Project>{a731c4c3-3741-4080-a946-c47574c1f3bf}</Project>
       <Name>TestUtilities.Python.Analysis</Name>

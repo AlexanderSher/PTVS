@@ -24,6 +24,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace TestUtilities {
     public static class TestExtensions {
+        private static readonly string _binPath = typeof(TestExtensions).Assembly.GetAssemblyDirectory();
+
         public static void SetStartupFile(this Project project, string name) {
             Assert.IsNotNull(project, "null project");
             Assert.IsNotNull(project.Properties, "null project properties " + project.Name + " " + project.GetType().FullName + " " + project.Kind);
@@ -41,14 +43,6 @@ namespace TestUtilities {
                 yield return pos;
                 pos++;
             }
-        }
-
-        public static int IndexOfEnd(this string s, string substring) {
-            int i = s.IndexOf(substring);
-            if (i < 0) {
-                return i;
-            }
-            return i + substring.Length;
         }
 
         public static HashSet<T> ToSet<T>(this IEnumerable<T> enumeration) {
@@ -75,6 +69,9 @@ namespace TestUtilities {
             }
             return true;
         }
+        
+        public static TestEnvironmentImpl AddVsResolvePaths(this TestEnvironmentImpl testEnvironment) 
+            => testEnvironment.AddAssemblyResolvePaths(_binPath, VisualStudioPath.CommonExtensions, VisualStudioPath.PrivateAssemblies, VisualStudioPath.PublicAssemblies);
 
         public static XName GetName(this XDocument doc, string localName) {
             return doc.Root.Name.Namespace.GetName(localName);

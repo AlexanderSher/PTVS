@@ -20,7 +20,7 @@ using System.Linq;
 using System.Reflection;
 
 namespace TestUtilities {
-    internal static class AssemblyExtensions {
+    public static class AssemblyExtensions {
         public static string GetAssemblyDirectory(this Assembly assembly) => Path.GetDirectoryName(assembly.GetAssemblyPath());
 
         public static string GetAssemblyPath(this Assembly assembly) {

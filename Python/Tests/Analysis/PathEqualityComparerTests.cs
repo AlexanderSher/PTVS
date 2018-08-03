@@ -15,9 +15,9 @@
 // permissions and limitations under the License.
 
 using System.Linq;
+using FluentAssertions;
 using Microsoft.PythonTools.Analysis.Infrastructure;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestUtilities;
 
 namespace AnalysisTests {
     [TestClass]
@@ -92,11 +92,9 @@ namespace AnalysisTests {
                 cmp.GetHashCode(path1);
             }
 
-            AssertUtil.CheckCollection(
-                cmp._compareKeyCache.Keys,
-                new[] { path1 },
-                new[] { path2 }
-            );
+            cmp._compareKeyCache
+                .Should().ContainKey(path1)
+                .And.NotContainKey(path2);
         }
     }
 }

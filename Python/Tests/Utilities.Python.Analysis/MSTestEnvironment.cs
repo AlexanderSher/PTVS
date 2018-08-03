@@ -26,5 +26,15 @@ namespace TestUtilities.Python {
             Common.TestEnvironment.Current = instance;
             return instance;
         }
+        
+        protected override void BeforeTestRun(int secondsTimeout) {
+            AssertListener.Initialize();
+            base.BeforeTestRun(secondsTimeout);
+        }
+
+        protected override void AfterTestRun() {
+            base.AfterTestRun();
+            AssertListener.ThrowUnhandled();
+        }
     }
 }

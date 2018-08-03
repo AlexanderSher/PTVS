@@ -51,22 +51,18 @@
     <Reference Include="System.XML" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnalysisSaveTest.cs" />
     <Compile Include="AnalysisTest.cs" />
     <Compile Include="AnalysisTest.Perf.cs" />
-    <Compile Include="AnalyzerTests.cs" />
     <Compile Include="AssemblySetup.cs" />
     <Compile Include="AstAnalysisTests.cs" />
     <Compile Include="BaseAnalysisTest.cs" />
     <Compile Include="DocumentBufferTests.cs" />
-    <Compile Include="CompletionDBTest.cs" />
-    <Compile Include="DatabaseTest.cs" />
-    <Compile Include="DeserializationTests.cs" />
     <Compile Include="EventTaskSources.cs" />
     <Compile Include="ExpressionFinderTests.cs" />
     <Compile Include="FunctionBodyAnalysisTests.cs" />
     <Compile Include="LanguageServerTests.cs" />
     <Compile Include="LongestCommonSequenceTests.cs" />
+    <Compile Include="ModuleAnalysisExtensions.cs" />
     <Compile Include="ModulePathTests.cs" />
     <Compile Include="ModuleTableTests.cs" />
     <Compile Include="ParserEncodingTests.cs" />
@@ -85,7 +81,6 @@
     <Compile Include="ThreadingTest.cs" />
     <Compile Include="TokenizerRoundTripTest.cs" />
     <Compile Include="TypeAnnotationTests.cs" />
-    <Compile Include="UpdaterTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Product\Analysis\Analysis.csproj">
@@ -108,6 +103,10 @@
     <ProjectReference Include="..\..\Product\RunElevated\RunElevated.csproj">
       <Project>{4e18d41e-5e73-461f-9289-f6709257171a}</Project>
       <Name>RunElevated</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Utilities.Core\Tests.Utilities.Core.NetStandard.csproj">
+      <Project>{A79231E6-C399-4798-8B74-F46C5CBA7FF9}</Project>
+      <Name>Tests.Utilities.Core.NetStandard</Name>
     </ProjectReference>
     <ProjectReference Include="..\Utilities.Python.Analysis\TestUtilities.Python.Analysis.csproj">
       <Project>{a731c4c3-3741-4080-a946-c47574c1f3bf}</Project>

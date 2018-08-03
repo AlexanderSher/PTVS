@@ -21,8 +21,10 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using FluentAssertions;
+using Microsoft.Python.Tests.Utilities.FluentAssertions;
 using Microsoft.PythonTools.Analysis;
-using Microsoft.PythonTools.Infrastructure;
+using Microsoft.PythonTools.Analysis.Infrastructure;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -182,13 +184,9 @@ mc.fn([])
                     var sigs = entry.Analysis.GetSignaturesByIndex("my_test_func", 0).ToList();
 
                     if (sigs.Any()) {
-                        AssertUtil.ContainsExactly(
-                            sigs.Select(s => s.Name),
-                            "test_func"
-                        );
-
                         foreach (var s in sigs) {
-                            AssertUtil.ContainsExactly(s.Parameters.Select(p => p.Name), "a", "b");
+                            s.Name.Should().Be("test_func");
+                            s.Parameters.Select(p => p.Name).Should().BeEquivalentTo("a", "b");
                         }
                     }
                 }

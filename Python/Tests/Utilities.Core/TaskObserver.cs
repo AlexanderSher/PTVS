@@ -18,11 +18,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using FluentAssertions.Execution;
 using TestUtilities.Ben.Demystifier;
 
 namespace TestUtilities {
@@ -147,7 +146,7 @@ namespace TestUtilities {
                     .AppendLine();
             }
 
-            throw new AssertFailedException(message.ToString());
+            Execute.Assertion.FailWith(message.ToString());
         }
 
         private void TestCompleted() {

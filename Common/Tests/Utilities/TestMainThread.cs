@@ -43,7 +43,7 @@ namespace TestUtilities {
             if (bl != null) {
                 bl.Post(action);
             } else {
-                TestEnvironmentImpl.Instance.TryAddTaskToWait(_service.InvokeAsync(action));
+                TestEnvironment.Instance.TryAddTaskToWait(_service.InvokeAsync(action));
             }
         }
 

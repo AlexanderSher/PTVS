@@ -27,15 +27,11 @@ namespace TestUtilities {
 
         private readonly AsyncLocal<TaskObserver> _taskObserver = new AsyncLocal<TaskObserver>();
         private readonly AssemblyLoader _assemblyLoader = new AssemblyLoader();
-        private readonly string _binPath = typeof(TestEnvironmentImpl).Assembly.GetAssemblyDirectory();
 
         public TestEnvironmentImpl AddAssemblyResolvePaths(params string[] paths) {
             _assemblyLoader.AddPaths(paths);
             return this;
         }
-
-        public TestEnvironmentImpl AddVsResolvePaths() 
-            => AddAssemblyResolvePaths(_binPath, VisualStudioPath.CommonExtensions, VisualStudioPath.PrivateAssemblies, VisualStudioPath.PublicAssemblies);
 
         public bool TryAddTaskToWait(Task task) {
             var taskObserver = _taskObserver.Value;
@@ -46,8 +42,7 @@ namespace TestUtilities {
             return true;
         }
         
-        private void BeforeTestRun(int secondsTimeout) {
-            AssertListener.Initialize();
+        protected virtual void BeforeTestRun(int secondsTimeout) {
             if (_taskObserver.Value != null) {
                 throw new InvalidOperationException("AsyncLocal<TaskObserver> reentrancy");
             }
@@ -55,10 +50,9 @@ namespace TestUtilities {
             _taskObserver.Value = new TaskObserver(secondsTimeout);
         }
 
-        private void AfterTestRun() {
+        protected virtual void AfterTestRun() {
             try {
                 _taskObserver.Value?.WaitForObservedTask();
-                AssertListener.ThrowUnhandled();
             } finally {
                 _taskObserver.Value = null;
             }

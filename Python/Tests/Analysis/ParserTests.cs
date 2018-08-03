@@ -22,13 +22,14 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using FluentAssertions;
 using Microsoft.PythonTools;
 using Microsoft.PythonTools.Analysis.Infrastructure;
+using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
 using Microsoft.PythonTools.Parsing.Ast;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TestUtilities;
-using TestUtilities.Python;
 
 namespace AnalysisTests {
     /// <summary>
@@ -1093,11 +1094,9 @@ namespace AnalysisTests {
         public void GroupingRecoveryFailure() {
             // Align the "pass" keyword on a buffer border to ensure we restore the whitespace
             ParseString(new string(' ', Tokenizer.DefaultBufferCapacity - 9) + "{\r\n    pass", ErrorSink.Null, PythonLanguageVersion.V36);
-            AssertListener.ThrowUnhandled();
 
             // Ensure we can restore whitespace that crosses buffer borders
             ParseString("{\r\n" + new string(' ', Tokenizer.DefaultBufferCapacity * 2 - 9) + "    pass", ErrorSink.Null, PythonLanguageVersion.V36);
-            AssertListener.ThrowUnhandled();
         }
 
         [TestMethod, Priority(0)]
@@ -2819,46 +2818,49 @@ namespace AnalysisTests {
             }
         }
 
-        [TestMethod, Priority(2), Timeout(10 * 60 * 1000)]
-        [TestCategory("10s"), TestCategory("60s")]
-        public async Task StdLib() {
-            var tasks = new List<KeyValuePair<string, Task<string>>>();
+        //[TestMethod, Priority(2), Timeout(10 * 60 * 1000)]
+        //[TestCategory("10s"), TestCategory("60s")]
+        //public async Task StdLib() {
+        //    var tasks = new List<KeyValuePair<string, Task<string>>>();
 
-            foreach (var curVersion in PythonPaths.Versions) {
-                Console.WriteLine("Starting: {0}", curVersion);
-                tasks.Add(new KeyValuePair<string, Task<string>>(
-                    curVersion.ToString(),
-                    Task.Run(() => StdLibWorker(curVersion))
-                ));
-            }
-            Console.WriteLine("Started {0} tests", tasks.Count);
-            Console.WriteLine(new string('=', 80));
+        //    foreach (var curVersion in PythonPaths.Versions) {
+        //        Console.WriteLine("Starting: {0}", curVersion);
+        //        tasks.Add(new KeyValuePair<string, Task<string>>(
+        //            curVersion.ToString(),
+        //            Task.Run(() => StdLibWorker(curVersion.Configuration))
+        //        ));
+        //    }
 
-            bool anyErrors = false;
-            foreach (var task in tasks) {
-                string errors = null;
-                try {
-                    errors = await task.Value;
-                } catch (Exception ex) {
-                    errors = ex.ToString();
-                }
+        //    Console.WriteLine("Started {0} tests", tasks.Count);
+        //    Console.WriteLine(new string('=', 80));
 
-                if (string.IsNullOrEmpty(errors)) {
-                    Console.WriteLine("{0} passed", task.Key);
-                } else {
-                    Console.WriteLine("{0} errors:", task.Key);
-                    Console.WriteLine(errors);
-                    anyErrors = true;
-                }
-                Console.WriteLine(new string('=', 80));
-            }
+        //    var anyErrors = false;
+        //    foreach (var task in tasks) {
+        //        string errors = null;
+        //        try {
+        //            errors = await task.Value;
+        //        } catch (Exception ex) {
+        //            errors = ex.ToString();
+        //        }
 
-            Assert.IsFalse(anyErrors, "Errors occurred. See output trace for details.");
-        }
+        //        if (string.IsNullOrEmpty(errors)) {
+        //            Console.WriteLine("{0} passed", task.Key);
+        //        } else {
+        //            Console.WriteLine("{0} errors:", task.Key);
+        //            Console.WriteLine(errors);
+        //            anyErrors = true;
+        //        }
+        //        Console.WriteLine(new string('=', 80));
+        //    }
 
-        private static string StdLibWorker(PythonVersion curVersion) {
+        //    Assert.IsFalse(anyErrors, "Errors occurred. See output trace for details.");
+        //}
+
+        private static string StdLibWorker(InterpreterConfiguration configuration) {
             var files = new List<string>();
-            CollectFiles(Path.Combine(curVersion.PrefixPath, "Lib"), files, new[] { "site-packages" });
+            var version = configuration.Version.ToLanguageVersion();
+
+            CollectFiles(Path.Combine(configuration.PrefixPath, "Lib"), files, new[] { "site-packages" });
 
             var skippedFiles = new HashSet<string>(new[] {
                     "py3_test_grammar.py",  // included in 2x distributions but includes 3x grammar
@@ -2874,7 +2876,7 @@ namespace AnalysisTests {
                     continue;
                 }
 
-                switch (curVersion.Version) {
+                switch (version) {
                     case PythonLanguageVersion.V36:
                         if (// https://github.com/Microsoft/PTVS/issues/1637
                             filename.Equals("test_unicode_identifiers.py", StringComparison.OrdinalIgnoreCase)
@@ -2884,12 +2886,12 @@ namespace AnalysisTests {
                         break;
                 }
 
-                var parser = Parser.CreateParser(new StreamReader(file), curVersion.Version, new ParserOptions() { ErrorSink = errorSink });
+                var parser = Parser.CreateParser(new StreamReader(file), version, new ParserOptions() { ErrorSink = errorSink });
                 var ast = parser.ParseFile();
 
                 if (errorSink.Errors.Count != 0) {
                     var fileErrors = errorSink.Errors.ToList();
-                    if (curVersion.Configuration.Version == new Version(3, 5)) {
+                    if (version == PythonLanguageVersion.V35) {
                         // TODO: https://github.com/Microsoft/PTVS/issues/337
                         fileErrors.RemoveAll(e => {
                             return e.Message == "non-keyword arg after keyword arg";
@@ -2999,7 +3001,7 @@ pass
   # line 4"), PythonLanguageVersion.V36);
             var tree = parser.ParseFile();
 
-            AssertUtil.AreEqual(tree._commentLocations,
+            tree._commentLocations.Should().Equal(
                 new SourceLocation(1, 1),
                 new SourceLocation(3, 1),
                 new SourceLocation(5, 3)
@@ -3012,7 +3014,7 @@ pass
 pass
   # line 4"), PythonLanguageVersion.V36);
             tree = new PythonAst(new[] { tree1, parser.ParseFile() });
-            AssertUtil.AreEqual(tree._commentLocations,
+            tree._commentLocations.Should().Equal(
                 new SourceLocation(1, 1),
                 new SourceLocation(3, 1),
                 new SourceLocation(5, 3)

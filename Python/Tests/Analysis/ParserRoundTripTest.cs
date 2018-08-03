@@ -19,11 +19,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.PythonTools.Analysis;
+using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
 using Microsoft.PythonTools.Parsing.Ast;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestUtilities;
-using TestUtilities.Mocks;
 
 namespace AnalysisTests {
     /// <summary>
@@ -1560,17 +1559,17 @@ def f(): pass");
         }
 
 
-        private static void RoundTripStdLibTest(PythonVersion version) {
-            version.AssertInstalled();
+        private static void RoundTripStdLibTest(InterpreterConfiguration configuration) {
+            configuration.AssertInstalled();
 
-            Console.WriteLine("Testing version {0} {1}", version.Version, version.InterpreterPath);
+            Console.WriteLine("Testing version {0} {1}", configuration.Version, configuration.InterpreterPath);
 
             int ran = 0, succeeded = 0;
-            foreach(var file in ModulePath.GetModulesInLib(version.Configuration)) {
+            foreach(var file in ModulePath.GetModulesInLib(configuration)) {
                 try {
                     if (!file.IsCompiled && !file.IsNativeExtension) {
                         ran++;
-                        TestOneFile(file.SourceFile, version.Version);
+                        TestOneFile(file.SourceFile, configuration.Version.ToLanguageVersion());
                         succeeded++;
                     }
                 } catch (Exception e) {
@@ -1584,31 +1583,31 @@ def f(): pass");
         }
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib26() => RoundTripStdLibTest(PythonPaths.Python26 ?? PythonPaths.Python26_x64);
+        public void RoundTripStdLib26() => RoundTripStdLibTest(PythonVersions.Python26 ?? PythonVersions.Python26_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib27() => RoundTripStdLibTest(PythonPaths.Python27 ?? PythonPaths.Python27_x64);
+        public void RoundTripStdLib27() => RoundTripStdLibTest(PythonVersions.Python27 ?? PythonVersions.Python27_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib31() => RoundTripStdLibTest(PythonPaths.Python31 ?? PythonPaths.Python31_x64);
+        public void RoundTripStdLib31() => RoundTripStdLibTest(PythonVersions.Python31 ?? PythonVersions.Python31_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib32() => RoundTripStdLibTest(PythonPaths.Python32 ?? PythonPaths.Python32_x64);
+        public void RoundTripStdLib32() => RoundTripStdLibTest(PythonVersions.Python32 ?? PythonVersions.Python32_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib33() => RoundTripStdLibTest(PythonPaths.Python33 ?? PythonPaths.Python33_x64);
+        public void RoundTripStdLib33() => RoundTripStdLibTest(PythonVersions.Python33 ?? PythonVersions.Python33_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib34() => RoundTripStdLibTest(PythonPaths.Python34 ?? PythonPaths.Python34_x64);
+        public void RoundTripStdLib34() => RoundTripStdLibTest(PythonVersions.Python34 ?? PythonVersions.Python34_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib35() => RoundTripStdLibTest(PythonPaths.Python35 ?? PythonPaths.Python35_x64);
+        public void RoundTripStdLib35() => RoundTripStdLibTest(PythonVersions.Python35 ?? PythonVersions.Python35_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib36() => RoundTripStdLibTest(PythonPaths.Python36 ?? PythonPaths.Python36_x64);
+        public void RoundTripStdLib36() => RoundTripStdLibTest(PythonVersions.Python36 ?? PythonVersions.Python36_x64);
 
         [TestMethod, Priority(0)]
-        public void RoundTripStdLib37() => RoundTripStdLibTest(PythonPaths.Python37 ?? PythonPaths.Python37_x64);
+        public void RoundTripStdLib37() => RoundTripStdLibTest(PythonVersions.Python37 ?? PythonVersions.Python37_x64);
 
         [TestMethod, Priority(0)]
         public void GroupingRecovery() {

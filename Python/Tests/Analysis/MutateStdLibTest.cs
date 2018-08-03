@@ -16,6 +16,8 @@
 
 using System;
 using System.IO;
+using Microsoft.PythonTools.Analysis;
+using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TestUtilities;
@@ -32,53 +34,53 @@ namespace AnalysisTests {
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV26() {
-            TestMutateStdLib(PythonPaths.Python26_x64 ?? PythonPaths.Python26);
+            TestMutateStdLib(PythonVersions.Python26_x64 ?? PythonVersions.Python26);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV27() {
-            TestMutateStdLib(PythonPaths.Python27_x64 ?? PythonPaths.Python27);
+            TestMutateStdLib(PythonVersions.Python27_x64 ?? PythonVersions.Python27);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV31() {
-            TestMutateStdLib(PythonPaths.Python31_x64 ?? PythonPaths.Python31);
+            TestMutateStdLib(PythonVersions.Python31_x64 ?? PythonVersions.Python31);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV32() {
-            TestMutateStdLib(PythonPaths.Python32_x64 ?? PythonPaths.Python32);
+            TestMutateStdLib(PythonVersions.Python32_x64 ?? PythonVersions.Python32);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV33() {
-            TestMutateStdLib(PythonPaths.Python33_x64 ?? PythonPaths.Python33);
+            TestMutateStdLib(PythonVersions.Python33_x64 ?? PythonVersions.Python33);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV34() {
-            TestMutateStdLib(PythonPaths.Python34_x64 ?? PythonPaths.Python34);
+            TestMutateStdLib(PythonVersions.Python34_x64 ?? PythonVersions.Python34);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV35() {
-            TestMutateStdLib(PythonPaths.Python35_x64 ?? PythonPaths.Python35);
+            TestMutateStdLib(PythonVersions.Python35_x64 ?? PythonVersions.Python35);
         }
 
         [TestMethod, Priority(2)]
         [TestCategory("10s"), TestCategory("60s")]
         public void TestMutateStdLibV36() {
-            TestMutateStdLib(PythonPaths.Python36_x64 ?? PythonPaths.Python36);
+            TestMutateStdLib(PythonVersions.Python36_x64 ?? PythonVersions.Python36);
         }
 
-        private void TestMutateStdLib(PythonVersion version) {
-            version.AssertInstalled();
+        private void TestMutateStdLib(InterpreterConfiguration configuration) {
+            configuration.AssertInstalled();
 
             for (int i = 0; i < 100; i++) {
                 int seed = (int)DateTime.Now.Ticks;
@@ -86,11 +88,11 @@ namespace AnalysisTests {
                 Console.WriteLine("Seed == " + seed);
 
 
-                Console.WriteLine("Testing version {0} {1}", version.Version, Path.Combine(version.PrefixPath, "Lib"));
+                Console.WriteLine("Testing version {0} {1}", configuration.Version, Path.Combine(configuration.PrefixPath, "Lib"));
                 int ran = 0, succeeded = 0;
                 string[] files;
                 try {
-                    files = Directory.GetFiles(Path.Combine(version.PrefixPath, "Lib"));
+                    files = Directory.GetFiles(Path.Combine(configuration.PrefixPath, "Lib"));
                 } catch (DirectoryNotFoundException) {
                     continue;
                 }
@@ -99,7 +101,7 @@ namespace AnalysisTests {
                     try {
                         if (file.EndsWith(".py")) {
                             ran++;
-                            TestOneFileMutated(file, version.Version, random);
+                            TestOneFileMutated(file, configuration.Version.ToLanguageVersion(), random);
                             succeeded++;
                         }
                     } catch (Exception e) {

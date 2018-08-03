@@ -95,13 +95,7 @@
     <Reference Include="Microsoft.VisualStudio.QualityTools.Vsip" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AssemblyExtensions.cs" />
-    <Compile Include="AssemblyLoader.cs" />
     <Compile Include="AssertListener.cs" />
-    <Compile Include="Ben.Demystifier\ILReader.cs" />
-    <Compile Include="Ben.Demystifier\StringBuilderExtensions.cs" />
-    <Compile Include="Ben.Demystifier\TypeNameHelper.cs" />
-    <Compile Include="EventTaskSource.cs" />
     <Compile Include="FileUtils.cs" />
     <Compile Include="IAddExistingItem.cs" />
     <Compile Include="IAddNewItem.cs" />
@@ -132,8 +126,6 @@
     <Compile Include="ProcessScope.cs" />
     <Compile Include="SessionHolder.cs" />
     <Compile Include="SharedProject\SymbolicLinkItem.cs" />
-    <Compile Include="TaskObserver.cs" />
-    <Compile Include="TestEnvironmentImpl.cs" />
     <Compile Include="TestMainThread.cs" />
     <Compile Include="TestMainThreadService.cs" />
     <Compile Include="VCCompiler.cs" />

@@ -90,6 +90,10 @@
       <Project>{815db0cd-c0dd-4997-b43c-abee4dbeffe7}</Project>
       <Name>VSInterpreters</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Utilities.Core\Tests.Utilities.Core.NetStandard.csproj">
+      <Project>{A79231E6-C399-4798-8B74-F46C5CBA7FF9}</Project>
+      <Name>Tests.Utilities.Core.NetStandard</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="..\TestProjectAfter.settings" />
 </Project>

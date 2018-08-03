@@ -35,6 +35,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudioTools.MockVsTests;
 using TestUtilities;
+using StringExtensions = Microsoft.PythonTools.Analysis.Infrastructure.StringExtensions;
 
 namespace PythonToolsMockTests {
     sealed class PythonEditor : IDisposable {
@@ -251,7 +252,7 @@ namespace PythonToolsMockTests {
 
         public List<Completion> GetCompletionListAfter(string substring, bool assertIfNoCompletions = true) {
             var snapshot = CurrentSnapshot;
-            return GetCompletionList(snapshot.GetText().IndexOfEnd(substring), assertIfNoCompletions, snapshot);
+            return GetCompletionList(StringExtensions.IndexOfEnd(snapshot.GetText(), substring), assertIfNoCompletions, snapshot);
         }
 
         public List<Completion> GetCompletionList(

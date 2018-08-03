@@ -24,6 +24,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using analysis::Microsoft.PythonTools.Interpreter;
 using analysis::Microsoft.PythonTools.Parsing;
+using Microsoft.PythonTools.Analysis.Infrastructure;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

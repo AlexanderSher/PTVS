@@ -17,13 +17,10 @@
 using System;
 using System.Linq;
 using System.Text;
+using FluentAssertions;
 using Microsoft.PythonTools;
 using Microsoft.PythonTools.Analysis;
-using Microsoft.PythonTools.Intellisense;
-using Microsoft.PythonTools.Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestUtilities;
-using static Microsoft.PythonTools.Intellisense.ProjectEntryExtensions;
 
 namespace AnalysisTests {
     [TestClass]
@@ -51,7 +48,7 @@ def g(y):
                 DocumentChange.Insert(" ", new SourceLocation(2, 11))
             }));
 
-            AssertUtil.Contains(doc.Text.ToString(), "return g(x)");
+            doc.Text.ToString().Should().Contain("return g(x)");
             Assert.AreEqual(1, doc.Version);
 
             doc.Update(new[] {
@@ -63,20 +60,20 @@ def g(y):
                 })
             });
 
-            AssertUtil.Contains(doc.Text.ToString(), "return g(x * 2)");
+            doc.Text.ToString().Should().Contain("return g(x * 2)");
 
             doc.Update(new DocumentChangeSet(3, 4, new[] {
                 DocumentChange.Replace(new SourceLocation(2, 18), new SourceLocation(2, 19), "300")
             }));
 
-            AssertUtil.Contains(doc.Text.ToString(), "return g(x * 300)");
+            doc.Text.ToString().Should().Contain("return g(x * 300)");
 
             doc.Update(new DocumentChangeSet(4, 5, new[] {
                 // Changes are out of order, but we should fix that automatically
                 DocumentChange.Delete(new SourceLocation(2, 13), new SourceLocation(2, 22)),
                 DocumentChange.Insert("#", new SourceLocation(2, 7))
             }));
-            AssertUtil.Contains(doc.Text.ToString(), "re#turn g");
+            doc.Text.ToString().Should().Contain("re#turn g");
         }
 
         [TestMethod, Priority(0)]
@@ -124,7 +121,7 @@ def g(y):
                 Assert.AreEqual(39, read);
                 for (int i = 0; i < read; i += 3) {
                     Console.WriteLine($"At {i}: {bytes[i]}, {bytes[i + 1]}, {bytes[i + 2]}");
-                    AssertUtil.AreEqual(bytes.Skip(i).Take(3).ToArray(), (byte)239, (byte)187, (byte)191);
+                    bytes.Skip(i).Take(3).Should().Equal(239, 187, 191);
                 }
             }
 
@@ -134,7 +131,7 @@ def g(y):
                 Assert.AreEqual(36, read);
                 for (int i = 0; i < read; i += 3) {
                     Console.WriteLine($"At {i}: {bytes[i]}, {bytes[i + 1]}, {bytes[i + 2]}");
-                    AssertUtil.AreEqual(bytes.Skip(i).Take(3).ToArray(), (byte)239, (byte)187, (byte)191);
+                    bytes.Skip(i).Take(3).Should().Equal((byte)239, (byte)187, (byte)191);
                 }
             }
 
@@ -144,7 +141,7 @@ def g(y):
                 Assert.AreEqual(26, read);
                 for (int i = 0; i < read; i += 2) {
                     Console.WriteLine($"At {i}: {bytes[i]}, {bytes[i + 1]}");
-                    AssertUtil.AreEqual(bytes.Skip(i).Take(2).ToArray(), (byte)0xFF, (byte)0xFE);
+                    bytes.Skip(i).Take(2).Should().Equal(0xFF, 0xFE);
                 }
             }
 
@@ -154,7 +151,7 @@ def g(y):
                 Assert.AreEqual(24, read);
                 for (int i = 0; i < read; i += 2) {
                     Console.WriteLine($"At {i}: {bytes[i]}, {bytes[i + 1]}");
-                    AssertUtil.AreEqual(bytes.Skip(i).Take(2).ToArray(), (byte)0xFF, (byte)0xFE);
+                    bytes.Skip(i).Take(2).Should().Equal(0xFF, 0xFE);
                 }
             }
         }

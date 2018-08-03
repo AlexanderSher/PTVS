@@ -16,6 +16,7 @@
 
 using System;
 using System.Linq;
+using FluentAssertions;
 using Microsoft.PythonTools.Intellisense;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TestUtilities;
@@ -55,7 +56,7 @@ namespace AnalysisTests {
 
         private void FindCharDiffs(string oldText, string newText, params LcsDiff[] expected) {
             var diffs = LongestCommonSequence<char>.Find(oldText.ToCharArray(), newText.ToCharArray(), (c1, c2) => c1 == c2);
-            AssertUtil.ArrayEquals(expected, diffs.ToArray());
+            diffs.Should().Equal(expected);
         }
     }
 }
