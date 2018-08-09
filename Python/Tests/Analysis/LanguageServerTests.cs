@@ -912,7 +912,6 @@ datetime.datetime.now().day
             var diags = new Dictionary<Uri, PublishDiagnosticsEventArgs>();
             var s = await CreateServer((string)null, null, diags);
             var u = await AddModule(s, "def f(/)\n    error text\n");
-            await s.WaitForCompleteAnalysisAsync();
 
             GetDiagnostics(diags, u).Should().OnlyContain(
                 "Error;unexpected token '/';Python (parser);0;6;7",
@@ -968,7 +967,6 @@ datetime.datetime.now().day
             var s = await CreateServer((Uri)null, null, diags);
 
             var u = await AddModule(s, "y\nx x");
-            await s.WaitForCompleteAnalysisAsync();
 
             GetDiagnostics(diags, u).Should().OnlyContain(
                 "Warning;unknown variable 'y';Python (analysis);0;0;1",
