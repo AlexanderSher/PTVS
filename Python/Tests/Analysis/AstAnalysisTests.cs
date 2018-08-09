@@ -166,7 +166,7 @@ namespace AnalysisTests {
 
         [TestMethod, Priority(0)]
         public void AstValues() {
-            using (var entry = CreateAnalysis()) {
+            using (PythonAnalysis entry = CreateAnalysis()) {
                 try {
                     entry.SetSearchPaths(TestData.GetPath(@"TestData\AstAnalysis"));
                     entry.AddModule("test-module", "from Values import *");
@@ -201,7 +201,7 @@ namespace AnalysisTests {
 
         [TestMethod, Priority(0)]
         public void AstMultiValues() {
-            using (var entry = CreateAnalysis()) {
+            using (PythonAnalysis entry = CreateAnalysis()) {
                 try {
                     entry.SetSearchPaths(TestData.GetPath(@"TestData\AstAnalysis"));
                     entry.AddModule("test-module", "from MultiValues import *");
@@ -1137,7 +1137,7 @@ i_5 = sys.getwindowsversion().platform_version[0]
 
         [TestMethod, Priority(0)]
         public void TypeStubConditionalDefine() {
-            var seen = new HashSet<PythonLanguageVersion>();
+            var seen = new HashSet<Version>();
 
             var code = @"import sys
 
@@ -1154,21 +1154,22 @@ if sys.version_info >= (2, 7):
 
             var fullSet = new[] { "LT_2_7", "LE_2_7", "GT_2_7", "GE_2_7" };
 
-            foreach (var ver in PythonPaths.Versions) {
+            foreach (var ver in PythonVersions.Versions) {
                 if (!seen.Add(ver.Version)) {
                     continue;
                 }
 
                 Console.WriteLine("Testing with {0}", ver.InterpreterPath);
 
-                var interpreter = InterpreterFactoryCreator.CreateAnalysisInterpreterFactory(ver.Version.ToVersion()).CreateInterpreter();
+                var interpreter = InterpreterFactoryCreator.CreateAnalysisInterpreterFactory(ver.Version).CreateInterpreter();
                 var entry = PythonModuleLoader.FromStream(interpreter, new MemoryStream(Encoding.ASCII.GetBytes(code)), "testmodule.pyi", ver.Version);
 
                 var expected = new List<string>();
-                if (ver.Version.Is3x()) {
+                var pythonVersion = ver.Version.ToLanguageVersion();
+                if (pythonVersion.Is3x()) {
                     expected.Add("GT_2_7");
                     expected.Add("GE_2_7");
-                } else if (ver.Version == PythonLanguageVersion.V27) {
+                } else if (pythonVersion == PythonLanguageVersion.V27) {
                     expected.Add("GE_2_7");
                     expected.Add("LE_2_7");
                 } else {

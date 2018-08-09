@@ -16,6 +16,7 @@
   <ItemGroup>
     <!--CreateAnalyzer-->
     <Compile Remove="AnalysisTest.cs" />
+    <Compile Remove="AstAnalysisTests.cs" />
     <Compile Remove="BaseAnalysisTest.cs" />
     <Compile Remove="FunctionBodyAnalysisTests.cs" />
     <Compile Remove="TypeAnnotationTests.cs" />
