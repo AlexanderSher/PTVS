@@ -84,7 +84,9 @@ namespace Microsoft.PythonTools.Analysis {
             IronPython27_x64,
             Jython27);
 
-        public static InterpreterConfiguration Available3x => GetVersions(
+        public static InterpreterConfiguration LatestAvailable => LatestAvailable3X ?? LatestAvailable2X;
+
+        public static InterpreterConfiguration LatestAvailable3X => GetVersions(
             Python37,
             Python37_x64,
             Python36,
@@ -99,6 +101,12 @@ namespace Microsoft.PythonTools.Analysis {
             Python32_x64,
             Python31,
             Python31_x64).First();
+
+        public static InterpreterConfiguration LatestAvailable2X => GetVersions(
+            Python27,
+            Python27_x64,
+            Python26,
+            Python26_x64).First();
 
         private static IEnumerable<InterpreterConfiguration> GetVersions(params InterpreterConfiguration[] configurations) => configurations.Where(v => v != null);
 

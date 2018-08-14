@@ -59,8 +59,9 @@
     <Compile Include="DocumentBufferTests.cs" />
     <Compile Include="EventTaskSources.cs" />
     <Compile Include="ExpressionFinderTests.cs" />
-    <Compile Include="FluentAssertions\PythonProjectEntryAssertions.cs" />
-    <Compile Include="FluentAssertions\PythonProjectEntryAssertionsExtensions.cs" />
+    <Compile Include="FluentAssertions\ModuleAnalysisAssertions.cs" />
+    <Compile Include="FluentAssertions\ModuleAnalysisAssertionsExtensions.cs" />
+    <Compile Include="FluentAssertions\VariableDefAndConstraint.cs" />
     <Compile Include="FunctionBodyAnalysisTests.cs" />
     <Compile Include="LanguageServerTests.cs" />
     <Compile Include="LongestCommonSequenceTests.cs" />

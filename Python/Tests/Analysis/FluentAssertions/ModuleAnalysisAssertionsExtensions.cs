@@ -18,8 +18,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    public static class PythonProjectEntryAssertionsExtensions {
-        public static PythonProjectEntryAssertions Should(this IPythonProjectEntry projectEntry) 
-            => new PythonProjectEntryAssertions(projectEntry);
+    internal static class ModuleAnalysisAssertionsExtensions {
+        public static ModuleAnalysisAssertions Should(this ModuleAnalysis moduleAnalysis) 
+            => new ModuleAnalysisAssertions(moduleAnalysis);
     }
 }

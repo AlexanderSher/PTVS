@@ -1170,30 +1170,4 @@ datetime.datetime.now().day
         protected override InterpreterConfiguration Default => DefaultV2;
         protected override BuiltinTypeId BuiltinTypeId_Str => BuiltinTypeId.Bytes;
     }
-
-    [TestClass]
-    public class TempTests {
-        [TestMethod, Priority(0)]
-        public async Task AstMultiValues() {
-            using (var server = new Server().InitializeAsync(PythonVersions.Available3x)) {
-                    analyzer.SetSearchPaths(new [] { TestData.GetPath(@"TestData\AstAnalysis") });
-                    var module = analyzer.AddModule("test-module", TestData.GetPath("test-module.py"));
-                    module.Analyze(CancellationToken.None, true);
-
-                    entry.AddModule("test-module", "from MultiValues import *");
-                    entry.WaitForAnalysis();
-
-                module.Should().HaveVariable("x", BuiltinTypeId.Int)
-                    .And.HaveVariable("y", BuiltinTypeId.Str)
-                    .And.HaveVariable("z", BuiltinTypeId.Bytes)
-                    .And.HaveVariable("l", BuiltinTypeId.List)
-                    .And.HaveVariable("t", BuiltinTypeId.Tuple)
-                    .And.HaveVariable("s", BuiltinTypeId.Set)
-                    .And.HaveVariable("XY", BuiltinTypeId.Int, BuiltinTypeId.Str)
-                    .And.HaveVariable("XYZ", BuiltinTypeId.Int, BuiltinTypeId.Str, BuiltinTypeId.Bytes)
-                    .And.HaveVariable("D", BuiltinTypeId.List, BuiltinTypeId.Tuple, BuiltinTypeId.Dict, BuiltinTypeId.Set);
-            }
-        }
-
-    }
 }

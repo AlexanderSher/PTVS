@@ -111,6 +111,9 @@ namespace TestUtilities {
             Console.WriteLine($"Creating temp directory for test at {path}");
             return path;
         }
+
+        public static Uri GetTempPathUri(string fileName)
+            => new Uri(Path.Combine(GetTempPath(), fileName));
     }
 }
 

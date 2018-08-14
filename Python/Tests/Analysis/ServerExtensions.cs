@@ -15,7 +15,10 @@
 // permissions and limitations under the License.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.PythonTools.Analysis.LanguageServer;
 using Microsoft.PythonTools.Interpreter;
@@ -23,8 +26,8 @@ using Microsoft.PythonTools.Interpreter.Ast;
 using TestUtilities;
 
 namespace Microsoft.PythonTools.Analysis {
-    public static class ServerExtensions {
-        public static async Task<Server> InitializeAsync(this Server server, InterpreterConfiguration configuration) {
+    internal static class ServerExtensions {
+        public static async Task<Server> InitializeAsync(this Server server, InterpreterConfiguration configuration, params string[] searchPaths) {
             configuration.AssertInstalled();
 
             server.OnLogMessage += Server_OnLogMessage;
@@ -43,6 +46,7 @@ namespace Microsoft.PythonTools.Analysis {
                         properties = properties
                     },
                     analysisUpdates = true,
+                    searchPaths = searchPaths,
                     traceLogging = true,
                 },
                 capabilities = new ClientCapabilities {
@@ -55,10 +59,18 @@ namespace Microsoft.PythonTools.Analysis {
             return server;
         }
 
-        public static void SendDidChangeTextDocument(this Server server, Uri uri) {
-            server.DidChangeTextDocument(new DidChangeTextDocumentParams {
-                textDocument = new VersionedTextDocumentIdentifier {
+        public static Task<ModuleAnalysis> GetAnalysisAsync(this Server server, Uri uri, int waitingTimeout = -1, CancellationToken cancellationToken = default(CancellationToken))
+            => ((ProjectEntry)server.ProjectFiles.GetEntry(uri)).GetAnalysisAsync(waitingTimeout, cancellationToken);
 
+        public static Task SendDidOpenTextDocument(this Server server, string path, string content, string languageId = null) 
+            => server.SendDidOpenTextDocument(new Uri(path), content, languageId);
+
+        public static Task SendDidOpenTextDocument(this Server server, Uri uri, string content, string languageId = null) {
+            return server.DidOpenTextDocument(new DidOpenTextDocumentParams {
+                textDocument = new TextDocumentItem {
+                    uri = uri,
+                    text = content,
+                    languageId = languageId ?? "python"
                 }
             });
         }
