@@ -18,6 +18,13 @@ using TestUtilities;
 
 namespace AnalysisTests {
     internal static class EventTaskSources {
+        public static class AstPythonInterpreter {
+            public static readonly EventTaskSource<Microsoft.PythonTools.Interpreter.Ast.AstPythonInterpreter> ModuleNamesChanged =
+                new EventTaskSource<Microsoft.PythonTools.Interpreter.Ast.AstPythonInterpreter>(
+                    (o, e) => o.ModuleNamesChanged += e,
+                    (o, e) => o.ModuleNamesChanged -= e);
+        }
+
         public static class Server {
             public static readonly EventTaskSource<Microsoft.PythonTools.Analysis.LanguageServer.Server, Microsoft.PythonTools.Analysis.LanguageServer.ParseCompleteEventArgs> OnParseComplete =
                 new EventTaskSource<Microsoft.PythonTools.Analysis.LanguageServer.Server, Microsoft.PythonTools.Analysis.LanguageServer.ParseCompleteEventArgs>(

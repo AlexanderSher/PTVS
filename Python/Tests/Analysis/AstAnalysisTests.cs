@@ -37,6 +37,7 @@ using Microsoft.PythonTools.Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TestUtilities;
 using Ast = Microsoft.PythonTools.Parsing.Ast;
+using static Microsoft.PythonTools.Analysis.Infrastructure.StringExtensions;
 
 namespace AnalysisTests {
     [TestClass]
@@ -276,51 +277,21 @@ R_A3 = R_A1.r_A()");
                 await server.SendDidOpenTextDocument(uri, "import datetime");
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveBuiltinModule("datetime")
-                    .Which.InterpreterModule.Should().HaveMember<AstPythonType>("datetime");
+                var datetimeType = analysis.Should().HaveVariable("datetime").WithValue<BuiltinModule>()
+                    .Which.Should().HavePythonModule()
+                    .Which.Should().HaveClass("datetime")
+                    .Which;
 
-                var dt = analysis.GetValues("datetime.datetime", SourceLocation.MinValue);
+                datetimeType.Should().HaveReadOnlyProperty("day").And.HaveMethod("now")
+                    .Which.Should().BeClassMethod().And.HaveSingleOverload()
+                    .Which.Should().HaveSingleReturnType()
+                    .Which.Should().BeSameAs(datetimeType);
             }
-
-            //using (var entry = CreateAnalysis()) {
-            //    try {
-            //        entry.AddModule("test-module", "import datetime");
-            //        entry.WaitForAnalysis();
-
-            //        var dtClass = entry.GetTypes("datetime.datetime").FirstOrDefault(t => t.MemberType == PythonMemberType.Class && t.Name == "datetime");
-            //        Assert.IsNotNull(dtClass);
-
-            //        var dayProperty = dtClass.GetMember(entry.ModuleContext, "day");
-            //        Assert.IsNotNull(dayProperty);
-            //        Assert.AreEqual(PythonMemberType.Property, dayProperty.MemberType);
-
-            //        var prop = dayProperty as AstPythonProperty;
-            //        Assert.IsTrue(prop.IsReadOnly);
-            //        Assert.AreEqual(BuiltinTypeId.Int, prop.Type.TypeId);
-
-            //        var nowMethod = dtClass.GetMember(entry.ModuleContext, "now");
-            //        Assert.IsNotNull(nowMethod);
-            //        Assert.AreEqual(PythonMemberType.Method, nowMethod.MemberType);
-
-            //        var func = nowMethod as AstPythonFunction;
-            //        Assert.IsTrue(func.IsClassMethod);
-
-            //        Assert.AreEqual(1, func.Overloads.Count);
-            //        var overload = func.Overloads[0];
-            //        Assert.IsNotNull(overload);
-            //        Assert.AreEqual(1, overload.ReturnType.Count);
-            //        Assert.AreEqual("datetime", overload.ReturnType[0].Name);
-            //    } finally {
-            //        _analysisLog = entry.GetLogContent(CultureInfo.InvariantCulture);
-            //    }
-            //}
         }
-        /*
+
         [TestMethod, Priority(0)]
-        public void AstComparisonTypeInference() {
-            using (var entry = CreateAnalysis()) {
-                try {
-                    var code = @"
+        public async Task AstComparisonTypeInference() {
+            var code = @"
 class BankAccount(object):
     def __init__(self, initial_balance=0):
         self.balance = initial_balance
@@ -329,147 +300,193 @@ class BankAccount(object):
     def overdrawn(self):
         return self.balance < 0
 ";
-                    entry.AddModule("test-module", code);
-                    entry.WaitForAnalysis();
 
-                    var moduleEntry = entry.Modules.First().Value;
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    var varDef = moduleEntry.Analysis.Scope.AllVariables.First(x => x.Key == "BankAccount").Value;
-                    var clsInfo = varDef.Types.First(x => x is ClassInfo).First() as ClassInfo;
-                    var overdrawn = clsInfo.Scope.GetVariable("overdrawn").Types.First() as FunctionInfo;
+                analysis.Should().HaveVariable("BankAccount")
+                    .WithValue<ClassInfo>()
+                    .Which.Should().HaveScope()
+                    .Which.Should().HaveVariable("overdrawn")
+                    .WithValue<FunctionInfo>()
+                    .Which.Should().HaveOverloadAt(0)
+                    .Which.Should().HaveSingleReturnType("bool");
+            }
+        }
 
-                    Assert.AreEqual(1, overdrawn.Overloads.Count());
-                    var overload = overdrawn.Overloads.First();
-                    Assert.IsNotNull(overload);
-                    Assert.AreEqual(1, overload.ReturnType.Count);
-                    Assert.AreEqual("bool", overload.ReturnType[0]);
+        [TestMethod, Priority(0)]
+        public async Task AstSearchPathsThroughFactory() {
+            using (var factory = CreateInterpreterFactory())
+            using (var analyzer = await PythonAnalyzer.CreateAsync(factory)) {
+                try {
+                    var interpreter = (AstPythonInterpreter)analyzer.Interpreter;
+
+                    var moduleNamesChanged = EventTaskSources.AstPythonInterpreter.ModuleNamesChanged.Create(interpreter, new CancellationTokenSource(1000).Token);
+                    factory.SetCurrentSearchPaths(new[] { TestData.GetPath("TestData\\AstAnalysis") });
+                    await moduleNamesChanged;
+
+                    interpreter.GetModuleNames().Should().Contain("Values");
+                    interpreter.ImportModule("Values").Should().NotBeNull("module should be available");
+
+                    moduleNamesChanged = EventTaskSources.AstPythonInterpreter.ModuleNamesChanged.Create(interpreter, new CancellationTokenSource(1000).Token);
+                    factory.SetCurrentSearchPaths(Enumerable.Empty<string>());
+                    await moduleNamesChanged;
+
+                    interpreter.GetModuleNames().Should().NotContain("Values");
+                    interpreter.ImportModule("Values").Should().BeNull("module should be removed");
                 } finally {
-                    _analysisLog = entry.GetLogContent(CultureInfo.InvariantCulture);
+                    _analysisLog = factory.GetAnalysisLogContent(CultureInfo.InvariantCulture);
                 }
             }
         }
 
         [TestMethod, Priority(0)]
-        public void AstSearchPathsThroughFactory() {
-            using (var evt = new ManualResetEvent(false))
-            using (var analysis = CreateAnalysis()) {
+        public async Task AstSearchPathsThroughAnalyzer() {
+            using (var factory = CreateInterpreterFactory())
+            using (var analyzer = await PythonAnalyzer.CreateAsync(factory)) {
                 try {
-                    var fact = (AstPythonInterpreterFactory)analysis.Analyzer.InterpreterFactory;
-                    var interp = (AstPythonInterpreter)analysis.Analyzer.Interpreter;
+                    var interpreter = (AstPythonInterpreter)analyzer.Interpreter;
 
-                    interp.ModuleNamesChanged += (s, e) => evt.Set();
+                    var moduleNamesChanged = EventTaskSources.AstPythonInterpreter.ModuleNamesChanged.Create(interpreter, new CancellationTokenSource(1000).Token);
+                    analyzer.SetSearchPaths(new[] { TestData.GetPath("TestData\\AstAnalysis") });
+                    await moduleNamesChanged;
 
-                    fact.SetCurrentSearchPaths(new[] { TestData.GetPath("TestData\\AstAnalysis") });
-                    Assert.IsTrue(evt.WaitOne(1000), "Timeout waiting for paths to update");
-                    AssertUtil.ContainsAtLeast(interp.GetModuleNames(), "Values");
-                    Assert.IsNotNull(interp.ImportModule("Values"), "Module was not available");
+                    interpreter.GetModuleNames().Should().Contain("Values");
+                    interpreter.ImportModule("Values").Should().NotBeNull("module should be available");
 
-                    evt.Reset();
-                    fact.SetCurrentSearchPaths(new string[0]);
-                    Assert.IsTrue(evt.WaitOne(1000), "Timeout waiting for paths to update");
-                    AssertUtil.DoesntContain(interp.GetModuleNames(), "Values");
-                    Assert.IsNull(interp.ImportModule("Values"), "Module was not removed");
+                    moduleNamesChanged = EventTaskSources.AstPythonInterpreter.ModuleNamesChanged.Create(interpreter, new CancellationTokenSource(1000).Token);
+                    analyzer.SetSearchPaths(Enumerable.Empty<string>());
+                    await moduleNamesChanged;
+
+                    interpreter.GetModuleNames().Should().NotContain("Values");
+                    interpreter.ImportModule("Values").Should().BeNull("module should be removed");
                 } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
+                    _analysisLog = factory.GetAnalysisLogContent(CultureInfo.InvariantCulture);
                 }
             }
         }
 
         [TestMethod, Priority(0)]
-        public void AstSearchPathsThroughAnalyzer() {
-            using (var evt = new AutoResetEvent(false))
-            using (var analysis = CreateAnalysis()) {
-                try {
-                    var fact = (AstPythonInterpreterFactory)analysis.Analyzer.InterpreterFactory;
-                    var interp = (AstPythonInterpreter)analysis.Analyzer.Interpreter;
+        public async Task AstTypeStubPaths_NoStubs() {
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                await server.GetAnalysisAsync(uri);
+                
+                server.Analyzer.Limits = new AnalysisLimits {
+                    UseTypeStubPackages = false
+                };
+                server.Analyzer.SetTypeStubPaths(Enumerable.Empty<string>());
+                server.EnqueueItem(uri);
 
-                    interp.ModuleNamesChanged += (s, e) => evt.SetIfNotDisposed();
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    analysis.Analyzer.SetSearchPaths(new[] { TestData.GetPath("TestData\\AstAnalysis") });
-                    Assert.IsTrue(evt.WaitOne(1000), "Timeout waiting for paths to update");
-                    AssertUtil.ContainsAtLeast(interp.GetModuleNames(), "Values");
-                    Assert.IsNotNull(interp.ImportModule("Values"), "Module was not available");
+                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
+                    .Which.Should().HavePythonModule()
+                    .Which.Should().HaveNestedModule("Module")
+                    .Which.Should().HaveClass("Class")
+                    .Which;
 
-                    analysis.Analyzer.SetSearchPaths(new string[0]);
-                    Assert.IsTrue(evt.WaitOne(1000), "Timeout waiting for paths to update");
-                    AssertUtil.DoesntContain(interp.GetModuleNames(), "Values");
-                    Assert.IsNull(interp.ImportModule("Values"), "Module was not removed");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("c")
+                    .WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
+                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMembers("untyped_method", "inferred_method")
+                    .And.NotHaveMembers("typed_method", "typed_method_2");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void AstTypeStubPaths_NoStubs() {
-            using (var analysis = CreateAnalysis()) {
-                try {
-                    analysis.SetSearchPaths(TestData.GetPath("TestData\\AstAnalysis"));
-                    analysis.AddModule("test-module", "import Package.Module\n\nc = Package.Module.Class()");
+        public async Task AstTypeStubPaths_MergeStubs() {
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                await server.GetAnalysisAsync(uri);
+                
+                server.Analyzer.Limits = new AnalysisLimits {
+                    UseTypeStubPackages = true,
+                    UseTypeStubPackagesExclusively = false
+                };
 
-                    analysis.SetLimits(new AnalysisLimits() { UseTypeStubPackages = false });
-                    analysis.SetTypeStubSearchPath();
-                    analysis.ReanalyzeAll();
-                    analysis.AssertHasAttr("c", "untyped_method", "inferred_method");
-                    analysis.AssertNotHasAttr("c", "typed_method", "typed_method_2");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                server.EnqueueItem(uri);
+
+                var analysis = await server.GetAnalysisAsync(uri);
+
+                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
+                    .Which.Should().HavePythonModule()
+                    .Which.Should().HaveNestedModule("Module")
+                    .Which.Should().HaveClass("Class")
+                    .Which;
+
+                analysis.Should().HaveVariable("c")
+                    .WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
+                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMembers("untyped_method", "inferred_method", "typed_method")
+                    .And.NotHaveMembers("typed_method_2");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void AstTypeStubPaths_MergeStubs() {
-            using (var analysis = CreateAnalysis()) {
-                try {
-                    analysis.SetSearchPaths(TestData.GetPath("TestData\\AstAnalysis"));
-                    analysis.AddModule("test-module", "import Package.Module\n\nc = Package.Module.Class()");
+        public async Task AstTypeStubPaths_MergeStubsPath() {
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                await server.GetAnalysisAsync(uri);
+                
+                server.Analyzer.SetTypeStubPaths(new[] { TestData.GetPath("TestData\\AstAnalysis\\Stubs") });
+                server.EnqueueItem(uri);
 
-                    analysis.SetLimits(new AnalysisLimits() { UseTypeStubPackages = true, UseTypeStubPackagesExclusively = false });
-                    analysis.ReanalyzeAll();
-                    analysis.AssertHasAttr("c", "untyped_method", "inferred_method", "typed_method");
-                    analysis.AssertNotHasAttr("c", "typed_method_2");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                var analysis = await server.GetAnalysisAsync(uri);
+
+                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
+                    .Which.Should().HavePythonModule()
+                    .Which.Should().HaveNestedModule("Module")
+                    .Which.Should().HaveClass("Class")
+                    .Which;
+
+                analysis.Should().HaveVariable("c")
+                    .WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
+                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMembers("untyped_method", "inferred_method", "typed_method_2")
+                    .And.NotHaveMembers("typed_method");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void AstTypeStubPaths_MergeStubsPath() {
-            using (var analysis = CreateAnalysis()) {
-                try {
-                    analysis.SetSearchPaths(TestData.GetPath("TestData\\AstAnalysis"));
-                    analysis.AddModule("test-module", "import Package.Module\n\nc = Package.Module.Class()");
+        public async Task AstTypeStubPaths_ExclusiveStubs() {
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                await server.GetAnalysisAsync(uri);
 
-                    analysis.SetTypeStubSearchPath(TestData.GetPath("TestData\\AstAnalysis\\Stubs"));
-                    analysis.ReanalyzeAll();
-                    analysis.AssertHasAttr("c", "untyped_method", "inferred_method", "typed_method_2");
-                    analysis.AssertNotHasAttr("c", "typed_method");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                server.Analyzer.Limits = new AnalysisLimits {
+                    UseTypeStubPackages = true,
+                    UseTypeStubPackagesExclusively = true
+                };
+                server.Analyzer.SetTypeStubPaths(new[] { TestData.GetPath("TestData\\AstAnalysis\\Stubs") });
+                server.EnqueueItem(uri);
+
+                var analysis = await server.GetAnalysisAsync(uri);
+
+                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
+                    .Which.Should().HavePythonModule()
+                    .Which.Should().HaveNestedModule("Module")
+                    .Which.Should().HaveClass("Class")
+                    .Which;
+
+                analysis.Should().HaveVariable("c")
+                    .WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
+                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMethod("typed_method_2")
+                    .And.NotHaveMembers("untyped_method", "inferred_method", "typed_method");
             }
         }
 
-        [TestMethod, Priority(0)]
-        public void AstTypeStubPaths_ExclusiveStubs() {
-            using (var analysis = CreateAnalysis()) {
-                try {
-                    analysis.SetSearchPaths(TestData.GetPath("TestData\\AstAnalysis"));
-                    analysis.AddModule("test-module", "import Package.Module\n\nc = Package.Module.Class()");
-
-                    analysis.SetLimits(new AnalysisLimits() { UseTypeStubPackages = true, UseTypeStubPackagesExclusively = true });
-                    analysis.SetTypeStubSearchPath(TestData.GetPath("TestData\\AstAnalysis\\Stubs"));
-                    analysis.ReanalyzeAll();
-                    analysis.AssertHasAttr("c", "typed_method_2");
-                    analysis.AssertNotHasAttr("c", "untyped_method", "inferred_method", "typed_method");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
-            }
-        }
-        */
         [TestMethod, Priority(0)]
         public void AstMro() {
             var O = new AstPythonType("O");
@@ -615,6 +632,7 @@ class BankAccount(object):
                         mod.GetMember(null, $"__{id}").Should().BeNull(id);
                     }
                 } finally {
+                    AstScrapedPythonModule.KeepAst = false;
                     _analysisLog = factory.GetAnalysisLogContent(CultureInfo.InvariantCulture);
                 }
             }
@@ -676,8 +694,8 @@ class BankAccount(object):
 
 
         private void AstNativeBuiltinScrape(InterpreterConfiguration configuration) {
-            AstScrapedPythonModule.KeepAst = true;
             configuration.AssertInstalled();
+            AstScrapedPythonModule.KeepAst = true;
             using (var factory = CreateInterpreterFactory(configuration))
             using (var analyzer = PythonAnalyzer.CreateSynchronously(factory)) {
                 try {
@@ -733,6 +751,7 @@ class BankAccount(object):
 
                     report.Should().BeEmpty();
                 } finally {
+                    AstScrapedPythonModule.KeepAst = false;
                     _analysisLog = factory.GetAnalysisLogContent(CultureInfo.InvariantCulture);
                 }
             }
@@ -915,152 +934,132 @@ class BankAccount(object):
         }
 
         #endregion
-        /*
         #region Type Annotation tests
         [TestMethod, Priority(0)]
         public async Task AstTypeAnnotationConversion() {
-            using (var factory = CreateInterpreterFactory())
-            using (var analyzer = await PythonAnalyzer.CreateAsync(factory)) {
-                try {
-                    analyzer.SetSearchPaths(new [] { TestData.GetPath(@"TestData\AstAnalysis") });
-                    analysis.AddModule("test-module", @"from ReturnAnnotations import *
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"from ReturnAnnotations import *
 x = f()
 y = g()");
-                    analysis.WaitForAnalysis();
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    analysis.AssertIsInstance("x", BuiltinTypeId.Int);
-                    analysis.AssertIsInstance("y", BuiltinTypeId.Str);
-                    var sigs = analysis.GetSignatures("f").ToArray();
-                    Assert.AreEqual(1, sigs.Length);
-                    Assert.AreEqual(1, sigs[0].Parameters.Length);
-                    var p = sigs[0].Parameters[0];
-                    Assert.AreEqual("p", p.Name);
-                    Assert.AreEqual("int", p.Type);
-                    Assert.AreEqual("", p.DefaultValue ?? "");
-                } finally {
-                    _analysisLog = factory.GetAnalysisLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("y").OfTypes(BuiltinTypeId.Str)
+                    .And.HaveVariable("f").WithValue<BuiltinFunctionInfo>()
+                    .Which.Should().HaveSingleOverload()
+                    .Which.Should().HaveSingleParameter()
+                    .Which.Should().HaveName("p").And.HaveType("int").And.HaveNoDefaultValue();
             }
         }
         #endregion
 
         #region Type Shed tests
-
         [TestMethod, Priority(0)]
-        public void TypeShedElementTree() {
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetTypeStubSearchPath(TypeShedPath);
-                try {
-                    var entry = analysis.AddModule("test-module", @"import xml.etree.ElementTree as ET
+        public async Task TypeShedElementTree() {
+            using (var server = await CreateServerAsync()) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import xml.etree.ElementTree as ET
 
 e = ET.Element()
 e2 = e.makeelement()
 iterfind = e.iterfind
 l = iterfind()");
-                    analysis.WaitForAnalysis();
+                var analysis = await server.GetAnalysisAsync(uri);
+                var elementSignatures = analysis.GetSignatures("ET.Element", SourceLocation.MinValue);
+                var makeelementSignatures = analysis.GetSignatures("e.makeelement", SourceLocation.MinValue);
+                var iterfindSignatures = analysis.GetSignatures("iterfind", SourceLocation.MinValue);
 
-                    analysis.AssertHasParameters("ET.Element", "tag", "attrib", "**extra");
-                    analysis.AssertHasParameters("e.makeelement", "tag", "attrib");
-                    analysis.AssertHasParameters("iterfind", "path", "namespaces");
-                    analysis.AssertIsInstance("l", BuiltinTypeId.List);
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("l").OfTypes(BuiltinTypeId.List);
+                elementSignatures.Should().ContainSingle()
+                    .Which.Should().HaveParameters("tag", "attrib", "**extra");
+                makeelementSignatures.Should().ContainSingle()
+                    .Which.Should().HaveParameters("tag", "attrib");
+                iterfindSignatures.Should().ContainSingle()
+                    .Which.Should().HaveParameters("path", "namespaces");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void TypeShedChildModules() {
-            string[] expected;
+        public async Task TypeShedChildModules() {
+            string[] firstMembers;
 
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetLimits(new AnalysisLimits() { UseTypeStubPackages = false });
-                try {
-                    var entry = analysis.AddModule("test-module", @"import urllib");
-                    analysis.WaitForAnalysis();
+            using (var server = await CreateServerAsync()) {
+                server.Analyzer.Limits = new AnalysisLimits {UseTypeStubPackages = false};
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import urllib");
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    expected = analysis.Analyzer.GetModuleMembers(entry.AnalysisContext, new[] { "urllib" }, false)
-                        .Select(m => m.Name)
-                        .OrderBy(n => n)
-                        .ToArray();
-                    Assert.AreNotEqual(0, expected.Length);
-                    AssertUtil.ContainsAtLeast(expected, "parse", "request");
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                firstMembers = server.Analyzer.GetModuleMembers(analysis.InterpreterContext, new[] {"urllib"})
+                    .Select(m => m.Name)
+                    .ToArray();
+
+                firstMembers.Should().NotBeEmpty().And.Contain(new [] {"parse", "request"});
             }
 
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetTypeStubSearchPath(TypeShedPath);
-                try {
-                    var entry = analysis.AddModule("test-module", @"import urllib");
-                    analysis.WaitForAnalysis();
+            using (var server = await CreateServerAsync()) {
+                server.Analyzer.SetTypeStubPaths(new [] { TypeShedPath });
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import urllib");
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    var mods = analysis.Analyzer.GetModuleMembers(entry.AnalysisContext, new[] { "urllib" }, false)
-                        .Select(m => m.Name)
-                        .OrderBy(n => n)
-                        .ToArray();
-                    AssertUtil.ArrayEquals(expected, mods);
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                var secondMembers = server.Analyzer.GetModuleMembers(analysis.InterpreterContext, new[] { "urllib" })
+                    .Select(m => m.Name)
+                    .ToArray();
+
+                secondMembers.Should().OnlyContain(firstMembers);
             }
         }
 
         [TestMethod, Priority(0)]
-        public void TypeShedSysExcInfo() {
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetTypeStubSearchPath(TypeShedPath);
-                try {
-                    var entry = analysis.AddModule("test-module", @"import sys
+        public async Task TypeShedSysExcInfo() {
+            using (var server = await CreateServerAsync()) {
+                server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import sys
 
 e1, e2, e3 = sys.exc_info()");
-                    analysis.WaitForAnalysis();
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    var funcs = analysis.GetValues("sys.exc_info").SelectMany(f => f.Overloads).ToArray();
-                    AssertUtil.ContainsExactly(
-                        funcs.Select(o => o.ToString()).Select(s => s.Remove(s.IndexOf("'''"))),
-                        "exc_info()->[tuple[type, BaseException, None]]",
-                        "exc_info()->[tuple]"
-                    );
-
-                    analysis.AssertIsInstance("e1", BuiltinTypeId.Type);
-                    analysis.AssertIsInstance("e2", "BaseException");
-                    analysis.AssertIsInstance("e3", BuiltinTypeId.NoneType);
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("e1").OfTypes(BuiltinTypeId.Type)
+                    .And.HaveVariable("e2").OfTypes("BaseException")
+                    .And.HaveVariable("e3").OfTypes(BuiltinTypeId.NoneType)
+                    .And.HaveVariable("sys").WithValue<BuiltinModule>()
+                    .Which.Should().HaveMember<BuiltinFunctionInfo>("exc_info")
+                    .Which.Should().HaveOverloadCount(2)
+                    .And.HaveOverloadAt(0).WithSingleReturnType("tuple")
+                    .And.HaveOverloadAt(1).WithSingleReturnType("tuple[type, BaseException, None]");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void TypeShedJsonMakeScanner() {
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetTypeStubSearchPath(TypeShedPath);
-                try {
-                    var entry = analysis.AddModule("test-module", @"import _json
+        public async Task TypeShedJsonMakeScanner() {
+            using (var server = await CreateServerAsync()) {
+                server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import _json
 
 scanner = _json.make_scanner()");
-                    analysis.WaitForAnalysis();
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    var overloads = analysis.GetSignatures("scanner");
-                    AssertUtil.ContainsExactly(
-                        overloads.Select(o => o.ToString()).Select(s => s.Remove(s.IndexOf("'''"))),
-                        "__call__(string:str=,index:int=)->[tuple[None, int]]"
-                    );
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("scanner").WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().HaveSingleOverload()
+                    .Which.Should().HaveName("__call__")
+                    .And.HaveParameters("string", "index")
+                    .And.HaveParameterAt(0).WithName("string").WithType("str").WithNoDefaultValue()
+                    .And.HaveParameterAt(1).WithName("index").WithType("int").WithNoDefaultValue()
+                    .And.HaveSingleReturnType("tuple[None, int]");
             }
         }
 
         [TestMethod, Priority(0)]
-        public void TypeShedSysInfo() {
-            using (var analysis = CreateAnalysis()) {
-                analysis.SetTypeStubSearchPath(TypeShedPath);
-                analysis.SetLimits(new AnalysisLimits { UseTypeStubPackages = true, UseTypeStubPackagesExclusively = true });
-                try {
-                    var entry = analysis.AddModule("test-module", @"import sys
+        public async Task TypeShedSysInfo() {
+            using (var server = await CreateServerAsync()) {
+                server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
+                server.Analyzer.Limits = new AnalysisLimits { UseTypeStubPackages = true, UseTypeStubPackagesExclusively = true };
+
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, @"import sys
 
 l_1 = sys.argv
 
@@ -1077,25 +1076,19 @@ i_3 = sys.implementation.version.major
 i_4 = sys.getsizeof(None)
 i_5 = sys.getwindowsversion().platform_version[0]
 ");
-                    analysis.WaitForAnalysis();
+                var analysis = await server.GetAnalysisAsync(uri);
 
-                    analysis.AssertIsInstance("l_1", BuiltinTypeId.List);
-
-                    analysis.AssertIsInstance("s_1", BuiltinTypeId.Str);
-                    analysis.AssertIsInstance("s_2", BuiltinTypeId.Str);
-                    analysis.AssertIsInstance("s_3", BuiltinTypeId.Str);
-
-                    analysis.AssertIsInstance("f_1", BuiltinTypeId.BuiltinMethodDescriptor);
-                    analysis.AssertIsInstance("f_2", BuiltinTypeId.BuiltinMethodDescriptor);
-
-                    analysis.AssertIsInstance("i_1", BuiltinTypeId.Int);
-                    analysis.AssertIsInstance("i_2", BuiltinTypeId.Int);
-                    analysis.AssertIsInstance("i_3", BuiltinTypeId.Int);
-                    analysis.AssertIsInstance("i_4", BuiltinTypeId.Int);
-                    analysis.AssertIsInstance("i_5", BuiltinTypeId.Int);
-                } finally {
-                    _analysisLog = analysis.GetLogContent(CultureInfo.InvariantCulture);
-                }
+                analysis.Should().HaveVariable("l_1").OfTypes(BuiltinTypeId.List)
+                    .And.HaveVariable("s_1").OfTypes(BuiltinTypeId.Str)
+                    .And.HaveVariable("s_2").OfTypes(BuiltinTypeId.Str)
+                    .And.HaveVariable("s_3").OfTypes(BuiltinTypeId.Str)
+                    .And.HaveVariable("f_1").OfTypes(BuiltinTypeId.BuiltinMethodDescriptor)
+                    .And.HaveVariable("f_2").OfTypes(BuiltinTypeId.BuiltinMethodDescriptor)
+                    .And.HaveVariable("i_1").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("i_2").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("i_3").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("i_4").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("i_5").OfTypes(BuiltinTypeId.Int);
             }
         }
 
@@ -1126,7 +1119,7 @@ if sys.version_info >= (2, 7):
                 Console.WriteLine("Testing with {0}", ver.InterpreterPath);
 
                 var interpreter = InterpreterFactoryCreator.CreateAnalysisInterpreterFactory(ver.Version).CreateInterpreter();
-                var entry = PythonModuleLoader.FromStream(interpreter, new MemoryStream(Encoding.ASCII.GetBytes(code)), "testmodule.pyi", ver.Version);
+                var entry = PythonModuleLoader.FromStream(interpreter, new MemoryStream(Encoding.ASCII.GetBytes(code)), "testmodule.pyi", ver.Version.ToLanguageVersion());
 
                 var expected = new List<string>();
                 var pythonVersion = ver.Version.ToLanguageVersion();
@@ -1141,15 +1134,12 @@ if sys.version_info >= (2, 7):
                     expected.Add("LE_2_7");
                 }
 
-                AssertUtil.CheckCollection(
-                    entry.GetMemberNames(null).Where(n => n.EndsWithOrdinal("2_7")),
-                    expected,
-                    fullSet.Except(expected)
-                );
+                entry.GetMemberNames(null).Where(n => n.EndsWithOrdinal("2_7"))
+                    .Should().Contain(expected)
+                    .And.NotContain(fullSet.Except(expected));
             }
         }
-
         #endregion
-    */
+
     }
 }

@@ -21,6 +21,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.PythonTools.Analysis.LanguageServer;
+using Microsoft.PythonTools.Intellisense;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Interpreter.Ast;
 using TestUtilities;
@@ -61,6 +62,9 @@ namespace Microsoft.PythonTools.Analysis {
 
         public static Task<ModuleAnalysis> GetAnalysisAsync(this Server server, Uri uri, int waitingTimeout = -1, CancellationToken cancellationToken = default(CancellationToken))
             => ((ProjectEntry)server.ProjectFiles.GetEntry(uri)).GetAnalysisAsync(waitingTimeout, cancellationToken);
+
+        public static void EnqueueItem(this Server server, Uri uri) 
+            => server.EnqueueItem((IDocument)server.ProjectFiles.GetEntry(uri));
 
         public static Task SendDidOpenTextDocument(this Server server, string path, string content, string languageId = null) 
             => server.SendDidOpenTextDocument(new Uri(path), content, languageId);

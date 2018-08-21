@@ -15,29 +15,30 @@
 // permissions and limitations under the License.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
+using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
+using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal sealed class VariableDefTestInfo {
         private readonly VariableDef _variableDef;
-        private readonly string _moduleName;
         private readonly string _name;
-        private readonly PythonLanguageVersion _languageVersion;
+        private readonly InterpreterScope _scope;
 
-        public VariableDefTestInfo(VariableDef variableDef, string moduleName, string name, PythonLanguageVersion languageVersion) {
+        public VariableDefTestInfo(VariableDef variableDef, string name, InterpreterScope scope) {
             _variableDef = variableDef;
-            _moduleName = moduleName;
             _name = name;
-            _languageVersion = languageVersion;
+            _scope = scope;
         }
 
-        public VariableDefAssertions Should() => new VariableDefAssertions(_variableDef, _moduleName, _name, _languageVersion);
+        public VariableDefAssertions Should() => new VariableDefAssertions(_variableDef, _name, _scope);
 
         public static implicit operator VariableDef(VariableDefTestInfo ti) => ti._variableDef;
     }
@@ -45,13 +46,15 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal sealed class VariableDefAssertions : ReferenceTypeAssertions<VariableDef, VariableDefAssertions> {
         private readonly string _moduleName;
         private readonly string _name;
+        private readonly InterpreterScope _scope;
         private readonly PythonLanguageVersion _languageVersion;
 
-        public VariableDefAssertions(VariableDef variableDef, string moduleName, string name, PythonLanguageVersion languageVersion) {
+        public VariableDefAssertions(VariableDef variableDef, string name, InterpreterScope scope) {
             Subject = variableDef;
-            _moduleName = moduleName;
             _name = name;
-            _languageVersion = languageVersion;
+            _scope = scope;
+            _moduleName = scope.Name;
+            _languageVersion = ((ModuleScope)scope.GlobalScope).Module.ProjectEntry.ProjectState.LanguageVersion;
         }
 
         protected override string Identifier => nameof(VariableDef);
@@ -99,8 +102,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
             if (missingClassNames.Any()) {
                 var message = expectedClassNames.Length > 1
-                    ? $"Expected variable {_name} to have types {string.Join(", ", expectedClassNames)}{{reason}}, but couldn't find {string.Join(", ", missingClassNames)}"
-                    : $"Expected variable {_name} to have type {expectedClassNames[0]}{{reason}}";
+                    ? $"Expected {_moduleName}.{_name} to have types {string.Join(", ", expectedClassNames)}{{reason}}, but couldn't find {string.Join(", ", missingClassNames)}"
+                    : $"Expected {_moduleName}.{_name} to have type {expectedClassNames[0]}{{reason}}";
 
                 Execute.Assertion
                     .BecauseOf(because, reasonArgs)
@@ -133,7 +136,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<VariableDefAssertions>(this);
         }
 
-        public AndWhichConstraint<VariableDefAssertions, TValue> HaveValue<TValue>(string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
+        public AndWhichConstraint<VariableDefAssertions, AnalysisValueTestInfo<TValue>> HaveValue<TValue>(string because = "", params object[] reasonArgs)
+            where TValue : AnalysisValue {
             var values = Flatten(Subject.Types).ToArray();
             var value = AssertSingle(because, reasonArgs, values);
 
@@ -142,15 +146,15 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {_moduleName}.{_name} to have value of type {typeof(TValue)}{{reason}}, but its value has type {value.GetType()}.");
 
-            return new AndWhichConstraint<VariableDefAssertions, TValue>(this, typedValue);
+            return new AndWhichConstraint<VariableDefAssertions, AnalysisValueTestInfo<TValue>>(this, new AnalysisValueTestInfo<TValue>(typedValue, _scope));
         }
         
         private AnalysisValue AssertSingle(string because, object[] reasonArgs, AnalysisValue[] values) {
             Execute.Assertion.ForCondition(values.Length == 1)
                 .BecauseOf(because, reasonArgs)
                 .FailWith(values.Length == 0 
-                    ? $"Expected module {_moduleName} to have single value{{reason}}, but found none."
-                    : $"Expected module {_moduleName} to have single value{{reason}}, but found multiple: {string.Join(", ", values.Select(v => v.Name))}");
+                    ? $"Expected variable '{_moduleName}.{_name}' to have single value{{reason}}, but found none."
+                    : $"Expected variable '{_moduleName}.{_name}' to have single value{{reason}}, but found {values.Length}: {GetQuotedNames(values)}");
 
             return values[0];
         }

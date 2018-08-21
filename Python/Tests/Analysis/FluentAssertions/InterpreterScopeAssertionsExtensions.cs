@@ -19,8 +19,8 @@ using Microsoft.PythonTools.Analysis.Analyzer;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class ModuleScopeAssertionsExtensions {
-        public static ModuleScopeAssertions Should(this ModuleScope moduleScope) 
-            => new ModuleScopeAssertions(moduleScope);
+    internal static class InterpreterScopeAssertionsExtensions {
+        public static InterpreterScopeAssertions Should(this InterpreterScope interpreterScope) 
+            => new InterpreterScopeAssertions(interpreterScope);
     }
 }

@@ -17,22 +17,23 @@
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using FluentAssertions.Execution;
+using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class MemberContainerAssertionsExtensions {
-        public static MemberContainerAssertions<IMemberContainer> Should(this IMemberContainer memberContainer)
-            => new MemberContainerAssertions<IMemberContainer>(memberContainer);
+    internal sealed class BuiltinModuleAssertions : AnalysisValueAssertions<BuiltinModule, BuiltinModuleAssertions> {
+        public BuiltinModuleAssertions(BuiltinModule subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
 
-        public static AndWhichConstraint<TAssertions, TMember> OfMemberType<TMember, TAssertions> (this AndWhichConstraint<TAssertions, TMember> constraint, PythonMemberType memberType, string because = "", params object[] reasonArgs)
-            where TMember : IMember {
+        protected override string Identifier => nameof(BuiltinModule);
 
-            Execute.Assertion.ForCondition(constraint.Which.MemberType == memberType)
+        public AndWhichConstraint<BuiltinModuleAssertions, IPythonModule> HavePythonModule(string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject.InterpreterModule != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {AssertionsUtilities.GetQuotedName(constraint.Which)} to have type '{memberType}', but found '{memberType}'");
+                .FailWith($@"Expected BuiltinModule '{OwnerScope.Name}.{Subject.Name}' to have InterpreterModule{{reason}}.");
 
-            return new AndWhichConstraint<TAssertions, TMember>(constraint.And, constraint.Which);
+            return new AndWhichConstraint<BuiltinModuleAssertions, IPythonModule>(this, Subject.InterpreterModule);
         }
     }
 }

@@ -15,24 +15,25 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using FluentAssertions;
 using FluentAssertions.Execution;
-using Microsoft.PythonTools.Interpreter;
+using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.Values;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class MemberContainerAssertionsExtensions {
-        public static MemberContainerAssertions<IMemberContainer> Should(this IMemberContainer memberContainer)
-            => new MemberContainerAssertions<IMemberContainer>(memberContainer);
+    internal sealed class ClassInfoAssertions : AnalysisValueAssertions<ClassInfo, ClassInfoAssertions> {
+        public ClassInfoAssertions(ClassInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
 
-        public static AndWhichConstraint<TAssertions, TMember> OfMemberType<TMember, TAssertions> (this AndWhichConstraint<TAssertions, TMember> constraint, PythonMemberType memberType, string because = "", params object[] reasonArgs)
-            where TMember : IMember {
-
-            Execute.Assertion.ForCondition(constraint.Which.MemberType == memberType)
+        protected override string Identifier => nameof(ClassInfo);
+        
+        public AndWhichConstraint<ClassInfoAssertions, ClassScope> HaveScope(string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject.Scope != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {AssertionsUtilities.GetQuotedName(constraint.Which)} to have type '{memberType}', but found '{memberType}'");
+                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} to have scope specified{{reason}}.");
 
-            return new AndWhichConstraint<TAssertions, TMember>(constraint.And, constraint.Which);
+            return new AndWhichConstraint<ClassInfoAssertions, ClassScope>(this, Subject.Scope);
         }
     }
 }

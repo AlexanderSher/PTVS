@@ -99,6 +99,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         }
 
         private void Analysis_UnhandledException(object sender, UnhandledExceptionEventArgs e) {
+            Debugger.Launch();
             Debug.Fail(e.ExceptionObject.ToString());
             LogMessage(MessageType.Error, e.ExceptionObject.ToString());
         }

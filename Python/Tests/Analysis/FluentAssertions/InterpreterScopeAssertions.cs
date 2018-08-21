@@ -14,71 +14,67 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
 using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
-using Microsoft.PythonTools.Parsing;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal sealed class ModuleScopeAssertions : ReferenceTypeAssertions<ModuleScope, ModuleScopeAssertions> {
-        public ModuleScopeAssertions(ModuleScope moduleScope) {
-            Subject = moduleScope;
+    internal sealed class InterpreterScopeAssertions : ReferenceTypeAssertions<InterpreterScope, InterpreterScopeAssertions> {
+        public InterpreterScopeAssertions(InterpreterScope interpreterScope) {
+            Subject = interpreterScope;
         }
 
-        protected override string Identifier => nameof(ModuleScopeAssertions);
+        protected override string Identifier => nameof(InterpreterScope);
 
-        public AndWhichConstraint<ModuleScopeAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
             NotBeNull();
 
             Execute.Assertion.ForCondition(Subject.TryGetVariable(name, out var variableDef))
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected module {Subject.Name} to have variable {name}{{reason}}.");
+                .FailWith($"Expected module '{Subject.Name}' to have variable {name}{{reason}}.");
 
-            return new AndWhichConstraint<ModuleScopeAssertions, VariableDefTestInfo>(this, new VariableDefTestInfo(variableDef, Subject.Name, name, Subject.Module.ProjectEntry.ProjectState.LanguageVersion));
+            return new AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo>(this, new VariableDefTestInfo(variableDef, name, Subject));
+        }
+        
+        public AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> HaveVariableWithValue<TValue>(string name, string because = "", params object[] reasonArgs)
+            where TValue : AnalysisValue {
+
+            var constraint = HaveVariable(name, because, reasonArgs)
+                .Which.Should().HaveValue<TValue>();
+
+            return new AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>>(this, constraint.Which);
         }
 
-        public AndWhichConstraint<ModuleScopeAssertions, BuiltinModule> HaveBuiltinModule(string name, string because = "", params object[] reasonArgs) {
-            var module = HaveVariable(name, because, reasonArgs)
-                .Which.Should().HaveMemberType(PythonMemberType.Module)
-                .And.HaveValue<BuiltinModule>()
-                .Which;
-
-            return new AndWhichConstraint<ModuleScopeAssertions, BuiltinModule>(this, module);
-        }
-
-        public AndConstraint<ModuleScopeAssertions> HaveClasses(params string[] classNames)
+        public AndConstraint<InterpreterScopeAssertions> HaveClasses(params string[] classNames)
             => HaveClasses(classNames, string.Empty);
 
-        public AndConstraint<ModuleScopeAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<InterpreterScopeAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             NotBeNull();
 
             foreach (var className in classNames) {
                 HaveVariable(className, because, reasonArgs).Which.Should().HaveMemberType(PythonMemberType.Class, because, reasonArgs);
             }
 
-            return new AndConstraint<ModuleScopeAssertions>(this);
+            return new AndConstraint<InterpreterScopeAssertions>(this);
         }
 
-        public AndConstraint<ModuleScopeAssertions> HaveFunctions(params string[] functionNames) 
+        public AndConstraint<InterpreterScopeAssertions> HaveFunctions(params string[] functionNames) 
             => HaveFunctions(functionNames, string.Empty);
 
-        public AndConstraint<ModuleScopeAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<InterpreterScopeAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
             Subject.Should().NotBeNull();
 
             foreach (var functionName in functionNames) {
                 HaveVariable(functionName, because, reasonArgs).Which.Should().HaveMemberType(PythonMemberType.Function, because, reasonArgs);
             }
 
-            return new AndConstraint<ModuleScopeAssertions>(this);
+            return new AndConstraint<InterpreterScopeAssertions>(this);
         }
     }
 }
