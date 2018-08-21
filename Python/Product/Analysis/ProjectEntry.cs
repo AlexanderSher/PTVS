@@ -157,14 +157,17 @@ namespace Microsoft.PythonTools.Analysis {
 
         internal void SetCompleteAnalysis() {
             lock (this) {
-                _analysisTcs.TrySetResultOnThreadPool(Analysis);
+                _analysisTcs.TrySetResult(Analysis);
             }
         }
 
         internal void ResetCompleteAnalysis() {
+            TaskCompletionSource<ModuleAnalysis> analysisTcs;
             lock (this) {
-                _analysisTcs = new TaskCompletionSource<ModuleAnalysis>();
+                analysisTcs = _analysisTcs;
+                _analysisTcs = new TaskCompletionSource<ModuleAnalysis>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
+            analysisTcs?.TrySetCanceled();
         }
 
         public void SetCurrentParse(PythonAst tree, IAnalysisCookie cookie, bool notify = true) {

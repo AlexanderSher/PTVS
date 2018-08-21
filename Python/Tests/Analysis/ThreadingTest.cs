@@ -120,7 +120,7 @@ mc.fn([])
 
             var entries = Enumerable.Range(0, 100)
                 .Select(i => {
-                    var entry = state.AddModule(string.Format("mod{0:000}", i), string.Format("mod{0:000}.py", i));
+                    var entry = (ProjectEntry)state.AddModule(string.Format("mod{0:000}", i), string.Format("mod{0:000}.py", i));
                     var parser = Parser.CreateParser(new StringReader(testCode.FormatInvariant(i + 1, PythonTypes[i % PythonTypes.Count])), PythonLanguageVersion.V34);
                     using (var p = entry.BeginParse()) {
                         p.Tree = parser.ParseFile();
@@ -133,6 +133,7 @@ mc.fn([])
             // One analysis before we start
             foreach (var e in entries) {
                 e.Analyze(cancel, true);
+                e.ResetCompleteAnalysis();
             }
             state.AnalyzeQueuedEntries(cancel);
 

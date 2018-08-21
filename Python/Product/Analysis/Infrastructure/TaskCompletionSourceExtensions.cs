@@ -14,14 +14,12 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.PythonTools.Analysis.Infrastructure {
     internal static class TaskCompletionSourceExtensions {
-        public static void TrySetResultOnThreadPool<T>(this TaskCompletionSource<T> taskCompletionSource, T result) 
-            => ThreadPool.QueueUserWorkItem(new TrySetResultStateAction<T>(taskCompletionSource, result).Invoke);
-
         public static CancellationTokenRegistration RegisterForCancellation<T>(this TaskCompletionSource<T> taskCompletionSource, CancellationToken cancellationToken) 
             => taskCompletionSource.RegisterForCancellation(-1, cancellationToken);
 
@@ -34,18 +32,6 @@ namespace Microsoft.PythonTools.Analysis.Infrastructure {
 
             var action = new CancelOnTokenAction<T>(taskCompletionSource, cancellationToken);
             return cancellationToken.Register(action.Invoke);
-        }
-
-        private struct TrySetResultStateAction<T> {
-            public TaskCompletionSource<T> Tcs { get; }
-            public T Result { get; }
-
-            public TrySetResultStateAction(TaskCompletionSource<T> tcs, T result) {
-                Tcs = tcs;
-                Result = result;
-            }
-
-            public void Invoke(object state) => Tcs.TrySetResult(Result);
         }
 
         private struct CancelOnTokenAction<T> {
