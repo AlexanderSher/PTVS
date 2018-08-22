@@ -15,6 +15,8 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
+using FluentAssertions;
+using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 
@@ -24,5 +26,24 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public FunctionInfoAssertions(FunctionInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) { }
 
         protected override string Identifier => nameof(FunctionInfo);
+        
+        public AndWhichConstraint<FunctionInfoAssertions, FunctionScope> HaveScope(string because = "", params object[] reasonArgs) {
+            var unit = Subject.AnalysisUnit;
+            Execute.Assertion.ForCondition(unit != null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} to have analysis unit specified{{reason}}.");
+
+            var scope = unit.Scope;
+            Execute.Assertion.ForCondition(scope != null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} analysis unit to have scope specified{{reason}}.");
+
+            var typedScope = scope as FunctionScope;
+            Execute.Assertion.ForCondition(typedScope != null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} analysis unit scope to be of type {nameof(FunctionScope)}{{reason}}, but it has type {scope.GetType()}.");
+
+            return new AndWhichConstraint<FunctionInfoAssertions, FunctionScope>(this, typedScope);
+        }
     }
 }

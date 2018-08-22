@@ -81,10 +81,10 @@ namespace Microsoft.PythonTools.Analysis {
 
         private static void Server_OnLogMessage(object sender, LogMessageEventArgs e) {
             switch (e.type) {
-                case MessageType.Error: Trace.TraceError(e.message); break;
-                case MessageType.Warning: Trace.TraceWarning(e.message); break;
-                case MessageType.Info: Trace.TraceInformation(e.message); break;
-                case MessageType.Log: Trace.TraceInformation("LOG: " + e.message); break;
+                case MessageType.Error: Trace.TraceError($"[{TestEnvironmentImpl.Elapsed()}]: {e.message}"); break;
+                case MessageType.Warning: Trace.TraceWarning($"[{TestEnvironmentImpl.Elapsed()}]: {e.message}"); break;
+                case MessageType.Info: Trace.TraceInformation($"[{TestEnvironmentImpl.Elapsed()}]: {e.message}"); break;
+                case MessageType.Log: Trace.TraceInformation($"[{TestEnvironmentImpl.Elapsed()}] LOG: {e.message}"); break;
             }
         }
     }

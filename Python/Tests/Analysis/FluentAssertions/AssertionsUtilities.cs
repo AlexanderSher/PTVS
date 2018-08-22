@@ -17,6 +17,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 
@@ -66,6 +67,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                     return pythonModule.Name;
                 case BuiltinInstanceInfo builtinInstanceInfo:
                     return builtinInstanceInfo.Name ?? $"instance of {builtinInstanceInfo.ClassInfo.FullyQualifiedName}";
+                case InterpreterScope interpreterScope:
+                    return interpreterScope.Name;
                 case AnalysisValue analysisValue:
                     return analysisValue.Name;
                 default:

@@ -29,20 +29,28 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         protected override string Identifier => nameof(AnalysisValue);
 
-        public AndConstraint<TAssertions> BeOfMemberType(PythonMemberType memberType, string because = "", params object[] reasonArgs) {
-            Execute.Assertion.ForCondition(Subject.MemberType == memberType)
+        public AndConstraint<TAssertions> HaveType(BuiltinTypeId typeId, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject.TypeId == typeId)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.Name} in {OwnerScope.Name} to be {memberType}{{reason}}, but it is {Subject.MemberType}.");
+                .FailWith($"Expected {GetName()} to be {typeId}{{reason}}, but it is {Subject.TypeId}.");
 
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
 
-        public AndWhichConstraint<TAssertions, IPythonType> BeOfPythonType(IPythonType pythonType, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TAssertions> HaveMemberType(PythonMemberType memberType, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject.MemberType == memberType)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {GetName()} to be {memberType}{{reason}}, but it is {Subject.MemberType}.");
+
+            return new AndConstraint<TAssertions>((TAssertions)this);
+        }
+
+        public AndWhichConstraint<TAssertions, IPythonType> HavePythonType(IPythonType pythonType, string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(Subject.PythonType == pythonType)
                 .BecauseOf(because, reasonArgs)
                 .FailWith(Subject.PythonType != null
-                    ? $"Expected {Subject.Name} in {OwnerScope.Name} to be {GetQuotedName(pythonType)}{{reason}}, but it is {GetQuotedName(Subject.PythonType)}."
-                    : $"Expected {Subject.Name} in {OwnerScope.Name} to be {GetQuotedName(pythonType)}{{reason}}, but it is null.");
+                    ? $"Expected {GetName()} to be {GetQuotedName(pythonType)}{{reason}}, but it is {GetQuotedName(Subject.PythonType)}."
+                    : $"Expected {GetName()} to be {GetQuotedName(pythonType)}{{reason}}, but it is null.");
 
             return new AndWhichConstraint<TAssertions, IPythonType>((TAssertions)this, pythonType);
         }
@@ -50,7 +58,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public AndConstraint<TAssertions> HaveOverloads(string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(Subject.Overloads.Any())
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} to have overloads{{reason}}.");
+                .FailWith($"Expected {GetName()} to have overloads{{reason}}.");
 
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
@@ -59,7 +67,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length == count)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected '{OwnerScope.Name}.{Subject.Name}' to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
+                .FailWith($"Expected {GetName()} to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
             return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[0]);
         }
@@ -68,7 +76,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length == 1)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected '{OwnerScope.Name}.{Subject.Name}' to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
+                .FailWith($"Expected {GetName()} to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
             return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[0]);
         }
@@ -77,7 +85,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length > index)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected '{OwnerScope.Name}.{Subject.Name}' to have overload at index {index}{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
+                .FailWith($"Expected {GetName()} to have overload at index {index}{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
             return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[index]);
         }
@@ -109,14 +117,16 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 errorMessage = member != null 
                     ? typedMember != null 
                         ? null
-                        : $"Expected {GetName(Subject)} to have a member {name} of type {typeof(TMember)}{{reason}}, but its type is {member.GetType()}."
-                    : $"Expected {GetName(Subject)} to have a member {name} of type {typeof(TMember)}{{reason}}.";
+                        : $"Expected {GetName()} to have a member {name} of type {typeof(TMember)}{{reason}}, but its type is {member.GetType()}."
+                    : $"Expected {GetName()} to have a member {name} of type {typeof(TMember)}{{reason}}.";
                 return typedMember != null;
             } catch (Exception e) {
-                errorMessage = $"Expected {GetName(Subject)} to have a member {name} of type {typeof(TMember)}{{reason}}, but {nameof(GetMember)} has failed with exception: {e}.";
+                errorMessage = $"Expected {GetName()} to have a member {name} of type {typeof(TMember)}{{reason}}, but {nameof(GetMember)} has failed with exception: {e}.";
                 typedMember = null;
                 return false;
             }
         }
+
+        protected string GetName() => $"value {AssertionsUtilities.GetName(Subject)} in a scope {AssertionsUtilities.GetName(OwnerScope)}";
     }
 }

@@ -152,7 +152,7 @@ namespace Microsoft.PythonTools.Analysis {
                 }
             }, cancellationToken);
 
-            return Task.WhenAny(timeoutTask, _analysisTcs.Task).Unwrap();
+            return Task.WhenAny(timeoutTask, task).Unwrap();
         }
 
         internal void SetCompleteAnalysis() {

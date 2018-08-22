@@ -15,6 +15,7 @@
 // permissions and limitations under the License.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,10 +23,12 @@ namespace TestUtilities {
     public class TestEnvironmentImpl {
         protected internal static TestEnvironmentImpl Instance { get; protected set; }
 
+        public static TimeSpan Elapsed() => Instance?._stopwatch.Value?.Elapsed ?? new TimeSpan();
         public static void TestInitialize(int secondsTimeout = 10) => Instance?.BeforeTestRun(secondsTimeout);
         public static void TestCleanup() => Instance?.AfterTestRun();
 
         private readonly AsyncLocal<TaskObserver> _taskObserver = new AsyncLocal<TaskObserver>();
+        private readonly AsyncLocal<Stopwatch> _stopwatch = new AsyncLocal<Stopwatch>();
         private readonly AssemblyLoader _assemblyLoader = new AssemblyLoader();
 
         public TestEnvironmentImpl AddAssemblyResolvePaths(params string[] paths) {
@@ -47,13 +50,21 @@ namespace TestUtilities {
                 throw new InvalidOperationException("AsyncLocal<TaskObserver> reentrancy");
             }
 
+            if (_stopwatch.Value != null) {
+                throw new InvalidOperationException("AsyncLocal<Stopwatch> reentrancy");
+            }
+
             _taskObserver.Value = new TaskObserver(secondsTimeout);
+            _stopwatch.Value = new Stopwatch();
+            _stopwatch.Value.Start();
         }
 
         protected virtual void AfterTestRun() {
             try {
                 _taskObserver.Value?.WaitForObservedTask();
+                _stopwatch.Value?.Stop();
             } finally {
+                _stopwatch.Value = null;
                 _taskObserver.Value = null;
             }
         }

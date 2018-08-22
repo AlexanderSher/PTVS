@@ -93,6 +93,9 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<VariableDefAssertions>(this);
         }
 
+        public AndConstraint<VariableDefAssertions> HaveClassName(string className, string because = "", params object[] reasonArgs)
+            => HaveClassNames(new[] { className }, because, reasonArgs);
+
         public AndConstraint<VariableDefAssertions> HaveClassNames(params string[] classNames)
             => HaveClassNames(classNames, string.Empty);
 

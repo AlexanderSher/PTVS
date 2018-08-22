@@ -18,51 +18,49 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
 using Microsoft.PythonTools.Interpreter;
-using ModuleAnalysisAndWhichConstraint = FluentAssertions.AndWhichConstraint<Microsoft.PythonTools.Analysis.FluentAssertions.ModuleAnalysisAssertions, Microsoft.PythonTools.Analysis.FluentAssertions.VariableDefTestInfo>;
-using InterpreterScopeAndWhichConstraint = FluentAssertions.AndWhichConstraint<Microsoft.PythonTools.Analysis.FluentAssertions.InterpreterScopeAssertions, Microsoft.PythonTools.Analysis.FluentAssertions.VariableDefTestInfo>;
-
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal static class VariableDefAssertionsExtensions {
-        public static ModuleAnalysisAndWhichConstraint OfTypes(this ModuleAnalysisAndWhichConstraint andWhichConstraint, params BuiltinTypeId[] typeIds)
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfType<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, BuiltinTypeId typeId, string because = "", params object[] reasonArgs) {
+            andWhichConstraint.Which.Should().HaveType(typeId, because, reasonArgs);
+            return andWhichConstraint;
+        }
+
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, params BuiltinTypeId[] typeIds)
             => andWhichConstraint.OfTypes(typeIds, string.Empty);
 
-        public static ModuleAnalysisAndWhichConstraint OfTypes(this ModuleAnalysisAndWhichConstraint andWhichConstraint, IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveTypes(typeIds, because, reasonArgs);
             return andWhichConstraint;
         }
 
-        public static ModuleAnalysisAndWhichConstraint OfTypes(this ModuleAnalysisAndWhichConstraint andWhichConstraint, params string[] classNames)
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfType<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string className, string because = "", params object[] reasonArgs) {
+            andWhichConstraint.Which.Should().HaveClassName(className, because, reasonArgs);
+            return andWhichConstraint;
+        }
+
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, params string[] classNames)
             => andWhichConstraint.OfTypes(classNames, string.Empty);
 
-        public static ModuleAnalysisAndWhichConstraint OfTypes(this ModuleAnalysisAndWhichConstraint andWhichConstraint, IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveClassNames(classNames, because, reasonArgs);
             return andWhichConstraint;
         }
 
-        public static ModuleAnalysisAndWhichConstraint WithDescription(this ModuleAnalysisAndWhichConstraint andWhichConstraint, string description, string because = "", params object[] reasonArgs) {
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> WithDescription<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string description, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveDescription(description, because, reasonArgs);
             return andWhichConstraint;
         }
 
-        public static AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this ModuleAnalysisAndWhichConstraint andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
+        public static AndWhichConstraint<TAssertion, AnalysisValueTestInfo<TValue>> WithValue<TAssertion, TValue>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
             var constraint = andWhichConstraint.Which.Should().HaveValue<TValue>(because, reasonArgs);
-            return new AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<TValue>>(andWhichConstraint.And, constraint.Which);
+            return new AndWhichConstraint<TAssertion, AnalysisValueTestInfo<TValue>>(andWhichConstraint.And, constraint.Which);
         }
 
-        public static AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<TValue>> WithValueOfType<TValue>(this ModuleAnalysisAndWhichConstraint andWhichConstraint, BuiltinTypeId typeId, string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
-            var constraint = andWhichConstraint.Which.Should().HaveType(typeId, because, reasonArgs).And.HaveValue<TValue>(because, reasonArgs);
-            return new AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<TValue>>(andWhichConstraint.And, constraint.Which);
-        }
+        public static AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this AndWhichConstraint<ModuleAnalysisAssertions, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue 
+            => andWhichConstraint.WithValue<ModuleAnalysisAssertions, TValue>(because, reasonArgs);
 
-        public static AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this InterpreterScopeAndWhichConstraint andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
-            var constraint = andWhichConstraint.Which.Should().HaveValue<TValue>(because, reasonArgs);
-            return new AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>>(andWhichConstraint.And, constraint.Which);
-        }
-
-        public static AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> WithValueOfType<TValue>(this InterpreterScopeAndWhichConstraint andWhichConstraint, BuiltinTypeId typeId, string because = "", params object[] reasonArgs) where TValue : AnalysisValue {
-            var constraint = andWhichConstraint.Which.Should().HaveType(typeId, because, reasonArgs).And.HaveValue<TValue>(because, reasonArgs);
-            return new AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>>(andWhichConstraint.And, constraint.Which);
-        }
+        public static AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue 
+            => andWhichConstraint.WithValue<InterpreterScopeAssertions, TValue>(because, reasonArgs);
     }
 }

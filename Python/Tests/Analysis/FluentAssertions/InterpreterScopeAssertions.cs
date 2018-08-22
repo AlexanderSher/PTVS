@@ -42,15 +42,6 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo>(this, new VariableDefTestInfo(variableDef, name, Subject));
         }
         
-        public AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> HaveVariableWithValue<TValue>(string name, string because = "", params object[] reasonArgs)
-            where TValue : AnalysisValue {
-
-            var constraint = HaveVariable(name, because, reasonArgs)
-                .Which.Should().HaveValue<TValue>();
-
-            return new AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>>(this, constraint.Which);
-        }
-
         public AndConstraint<InterpreterScopeAssertions> HaveClasses(params string[] classNames)
             => HaveClasses(classNames, string.Empty);
 

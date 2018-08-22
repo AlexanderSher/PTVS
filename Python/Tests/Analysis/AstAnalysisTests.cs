@@ -250,10 +250,11 @@ R_A3 = R_A1.r_A()");
                 await server.SendDidOpenTextDocument(uri, "from InstanceMethod import f1, f2");
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveVariable("f1").WithValueOfType<BuiltinFunctionInfo>(BuiltinTypeId.BuiltinFunction)
-                    .And.HaveVariable("f2").WithValueOfType<BoundBuiltinMethodInfo>(BuiltinTypeId.BuiltinMethodDescriptor);
+                analysis.Should().HaveVariable("f1").OfType(BuiltinTypeId.BuiltinFunction).WithValue<BuiltinFunctionInfo>()
+                    .And.HaveVariable("f2").OfType(BuiltinTypeId.BuiltinMethodDescriptor).WithValue<BoundBuiltinMethodInfo>();
             }
         }
+
         [TestMethod, Priority(0)]
         public async Task AstInstanceMembers_Random() {
             using (var server = await CreateServerAsync()) {
@@ -391,8 +392,8 @@ class BankAccount(object):
 
                 analysis.Should().HaveVariable("c")
                     .WithValue<BuiltinInstanceInfo>()
-                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
-                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMemberType(PythonMemberType.Instance)
+                    .And.HavePythonType(type)
                     .Which.Should().HaveMembers("untyped_method", "inferred_method")
                     .And.NotHaveMembers("typed_method", "typed_method_2");
             }
@@ -422,8 +423,8 @@ class BankAccount(object):
 
                 analysis.Should().HaveVariable("c")
                     .WithValue<BuiltinInstanceInfo>()
-                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
-                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMemberType(PythonMemberType.Instance)
+                    .And.HavePythonType(type)
                     .Which.Should().HaveMembers("untyped_method", "inferred_method", "typed_method")
                     .And.NotHaveMembers("typed_method_2");
             }
@@ -449,8 +450,8 @@ class BankAccount(object):
 
                 analysis.Should().HaveVariable("c")
                     .WithValue<BuiltinInstanceInfo>()
-                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
-                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMemberType(PythonMemberType.Instance)
+                    .And.HavePythonType(type)
                     .Which.Should().HaveMembers("untyped_method", "inferred_method", "typed_method_2")
                     .And.NotHaveMembers("typed_method");
             }
@@ -480,8 +481,8 @@ class BankAccount(object):
 
                 analysis.Should().HaveVariable("c")
                     .WithValue<BuiltinInstanceInfo>()
-                    .Which.Should().BeOfMemberType(PythonMemberType.Instance)
-                    .And.BeOfPythonType(type)
+                    .Which.Should().HaveMemberType(PythonMemberType.Instance)
+                    .And.HavePythonType(type)
                     .Which.Should().HaveMethod("typed_method_2")
                     .And.NotHaveMembers("untyped_method", "inferred_method", "typed_method");
             }
@@ -543,8 +544,8 @@ class BankAccount(object):
                 var analysis = await server.GetAnalysisAsync(uri, 15000);
 
                 analysis.Should().HaveVariable("math")
-                    .And.HaveVariable("inf").WithValueOfType<NumericInstanceInfo>(BuiltinTypeId.Float)
-                    .And.HaveVariable("nan").WithValueOfType<NumericInstanceInfo>(BuiltinTypeId.Float);
+                    .And.HaveVariable("inf").OfType(BuiltinTypeId.Float).WithValue<NumericInstanceInfo>()
+                    .And.HaveVariable("nan").OfType(BuiltinTypeId.Float).WithValue<NumericInstanceInfo>();
             }
         }
 
