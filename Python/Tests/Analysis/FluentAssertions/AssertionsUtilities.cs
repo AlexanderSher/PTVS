@@ -17,12 +17,39 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal static class AssertionsUtilities {
+        public static void AssertTypeIds(IEnumerable<BuiltinTypeId> actualTypeIds, IEnumerable<BuiltinTypeId> typeIds, string name, bool languageVersionIs3X, string because, object[] reasonArgs) {
+            var expectedTypeIds = typeIds.Select(t => {
+                switch (t) {
+                    case BuiltinTypeId.Str:
+                        return languageVersionIs3X ? BuiltinTypeId.Unicode : BuiltinTypeId.Bytes;
+                    case BuiltinTypeId.StrIterator:
+                        return languageVersionIs3X ? BuiltinTypeId.UnicodeIterator : BuiltinTypeId.BytesIterator;
+                    default:
+                        return t;
+                }
+            }).ToArray();
+
+            var missingTypeIds = expectedTypeIds.Except(actualTypeIds)
+                .ToArray();
+
+            if (missingTypeIds.Any()) {
+                var message = expectedTypeIds.Length > 1
+                    ? $"Expected {name} to have types {string.Join(", ", expectedTypeIds)}{{reason}}, but couldn't find {string.Join(", ", missingTypeIds)}"
+                    : $"Expected {name} to have type {expectedTypeIds[0]}{{reason}}";
+
+                Execute.Assertion
+                    .BecauseOf(because, reasonArgs)
+                    .FailWith(message);
+            }
+        }
+
         public static string GetQuotedNames(IEnumerable<object> values) {
             return GetQuotedNames(values.Select(GetName));
         }

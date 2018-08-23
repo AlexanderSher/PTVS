@@ -15,7 +15,13 @@
 // permissions and limitations under the License.
 
 using System.Linq;
-using Microsoft.PythonTools.Analysis.Analyzer;
+using System.Threading.Tasks;
+using FluentAssertions;
+using Microsoft.Python.Tests.Utilities.FluentAssertions;
+using Microsoft.PythonTools;
+using Microsoft.PythonTools.Analysis;
+using Microsoft.PythonTools.Analysis.FluentAssertions;
+using Microsoft.PythonTools.Analysis.LanguageServer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -23,65 +29,68 @@ using TestUtilities;
 
 namespace AnalysisTests {
     [TestClass]
-    public class FunctionBodyAnalysisTests : BaseAnalysisTest {
-        protected override bool SupportsPython3 => true;
-
+    public class FunctionBodyAnalysisTests {
         [TestMethod, Priority(0)]
-        public void ParameterInfoSet() {
-            var text = @"def f(a, b):
+        public async Task ParameterInfoSet() {
+            var code = @"def f(a, b):
     pass
 
 f(1, 3.14)
 a = 7.28
 b = 3.14
 ";
-            var entry = ProcessTextV3(text);
+            using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            // Ensure that calls update the special section of values, but not the
-            // ones in the normal function scope
-            var scope = entry.GetValue<FunctionInfo>("f").AnalysisUnit.Scope;
-            var a = scope.GetVariable("a").TypesNoCopy.Single();
-            var b = scope.GetVariable("b").TypesNoCopy.Single();
-            Assert.IsInstanceOfType(a, typeof(ParameterInfo));
-            Assert.IsInstanceOfType(b, typeof(ParameterInfo));
-
-            // Ensure that normal variable lookup inside a function resolves to the
-            // actual values.
-            entry.AssertIsInstance("a", text.IndexOf("pass"), BuiltinTypeId.Int);
-            entry.AssertIsInstance("b", text.IndexOf("pass"), BuiltinTypeId.Float);
+                analysis.Should().HaveVariable("f").WithValue<FunctionInfo>()
+                    .Which.Should().HaveFunctionScope()
+                    .Which.Should().HaveParameter("a").OfTypes(BuiltinTypeId.Int)
+                    .And.HaveVariable("a").WithValue<ParameterInfo>()
+                    .And.HaveParameter("b").OfTypes(BuiltinTypeId.Float)
+                    .And.HaveVariable("b").WithValue<ParameterInfo>();
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void ParameterInfoReturnValue() {
-            var text = @"def f(a, b):
+        public async Task ParameterInfoReturnValue() {
+            var code = @"def f(a, b):
     return a
 
 r_a = f(1, 3.14)
 r_b = f(b=1, a=3.14)
 r_a = f(1, 3.14)
 ";
-            var entry = ProcessTextV3(text);
+            using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            // Ensure that the internal return type is correct
-            var f = entry.GetValue<FunctionInfo>("f");
-            var rv = ((FunctionAnalysisUnit)f.AnalysisUnit).ReturnValue.TypesNoCopy.Single();
-            Assert.IsInstanceOfType(rv, typeof(ParameterInfo));
-            Assert.AreEqual("a", ((ParameterInfo)rv).Name);
+                analysis.Should()
+                        .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("r_b").OfType(BuiltinTypeId.Float)
+                    .And.HaveVariable("f").WithValue<FunctionInfo>()
+                    .Which.Should().HaveFunctionScope()
+                    .Which.Should()
+                        .HaveParameter("a").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveParameter("b").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveResolvedReturnTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveReturnValue().WithValue<ParameterInfo>()
+                    .Which.Should().HaveName("a");
 
-            // Ensure that normal resolution returns the union
-            AssertUtil.ContainsExactly(f.GetReturnValue().Select(v => v.TypeId), BuiltinTypeId.Int, BuiltinTypeId.Float);
-            entry.AssertIsInstance("f()", 0, BuiltinTypeId.Int, BuiltinTypeId.Float);
+                // Unevaluated calls return all types
+                analysis.GetValues("f()", SourceLocation.MinValue).Select(av => av.TypeId)
+                    .Should().OnlyContain(BuiltinTypeId.Int, BuiltinTypeId.Float);
+                analysis.GetValues("f(1)", SourceLocation.MinValue).Select(av => av.TypeId)
+                    .Should().OnlyContain(BuiltinTypeId.Int, BuiltinTypeId.Float);
 
-            // Ensure that specific calls return the specific type
-            entry.AssertIsInstance("r_a", 0, BuiltinTypeId.Int);
-            entry.AssertIsInstance("r_b", 0, BuiltinTypeId.Float);
-            // Unevaluated calls return all types
-            entry.AssertIsInstance("f(1)", 0, BuiltinTypeId.Int, BuiltinTypeId.Float);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void ChainedParameterInfoReturnValue() {
-            var text = @"def f(a, b):
+        public async Task ChainedParameterInfoReturnValue() {
+            var code = @"def f(a, b):
     return a
 
 def g(x, y):
@@ -91,39 +100,45 @@ r_a = g(1, 3.14)
 r_b = g(y=1, x=3.14)
 r_a = g(1, 3.14)
 ";
-            var entry = ProcessTextV3(text);
+            using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            // Ensure that the internal return types are correct
-            var f = entry.GetValue<FunctionInfo>("f");
-            var rv = ((FunctionAnalysisUnit)f.AnalysisUnit).ReturnValue.TypesNoCopy.Single();
-            Assert.IsInstanceOfType(rv, typeof(ParameterInfo));
-            Assert.AreEqual("a", ((ParameterInfo)rv).Name);
+                analysis.Should()
+                        .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("r_b").OfType(BuiltinTypeId.Float)
+                    .And.HaveVariable("f").WithValue<FunctionInfo>()
+                    .Which.Should().HaveFunctionScope()
+                    .Which.Should()
+                        .HaveParameter("a").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveParameter("b").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveResolvedReturnTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveReturnValue().WithValue<ParameterInfo>()
+                    .Which.Should().HaveName("a");
 
-            var g = entry.GetValue<FunctionInfo>("g");
-            rv = ((FunctionAnalysisUnit)g.AnalysisUnit).ReturnValue.TypesNoCopy.Single();
-            Assert.IsInstanceOfType(rv, typeof(ParameterInfo));
-            Assert.AreEqual("x", ((ParameterInfo)rv).Name);
+                analysis.Should().HaveVariable("g").WithValue<FunctionInfo>()
+                    .Which.Should().HaveFunctionScope()
+                    .Which.Should()
+                        .HaveParameter("x").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveParameter("y").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveResolvedReturnTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
+                    .And.HaveReturnValue().WithValue<ParameterInfo>()
+                    .Which.Should().HaveName("x");
 
-            // Ensure that normal resolution returns the union
-            AssertUtil.ContainsExactly(f.GetReturnValue().Select(v => v.TypeId), BuiltinTypeId.Int, BuiltinTypeId.Float);
-            AssertUtil.ContainsExactly(g.GetReturnValue().Select(v => v.TypeId), BuiltinTypeId.Int, BuiltinTypeId.Float);
-            entry.AssertIsInstance("f()", 0, BuiltinTypeId.Int, BuiltinTypeId.Float);
-            entry.AssertIsInstance("g()", 0, BuiltinTypeId.Int, BuiltinTypeId.Float);
-
-            // Ensure that the callee also has corrcet values
-            entry.AssertIsInstance("a", text.IndexOf("return a"), BuiltinTypeId.Int, BuiltinTypeId.Float);
-            entry.AssertIsInstance("b", text.IndexOf("return a"), BuiltinTypeId.Int, BuiltinTypeId.Float);
-
-            // Ensure that specific calls return the specific type
-            entry.AssertIsInstance("r_a", 0, BuiltinTypeId.Int);
-            entry.AssertIsInstance("r_b", 0, BuiltinTypeId.Float);
-            // Unevaluated calls return all types
-            entry.AssertIsInstance("g(1)", 0, BuiltinTypeId.Int, BuiltinTypeId.Float);
+                // Unevaluated calls return all types
+                analysis.GetValues("f()", SourceLocation.MinValue).Select(av => av.TypeId)
+                    .Should().OnlyContain(BuiltinTypeId.Int, BuiltinTypeId.Float);
+                analysis.GetValues("g()", SourceLocation.MinValue).Select(av => av.TypeId)
+                    .Should().OnlyContain(BuiltinTypeId.Int, BuiltinTypeId.Float);
+                analysis.GetValues("g(1)", SourceLocation.MinValue).Select(av => av.TypeId)
+                    .Should().OnlyContain(BuiltinTypeId.Int, BuiltinTypeId.Float);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void LazyMemberOnParameter() {
-            var text = @"class C:
+        public async Task LazyMemberOnParameter() {
+            var code = @"class C:
     x = 123
 class D:
     x = 3.14
@@ -133,12 +148,18 @@ def f(v):
 
 c = f(C())
 d = f(D())";
-            var entry = ProcessTextV3(text);
 
-            entry.AssertIsInstance("v", text.IndexOf("return"), "C", "D");
+            using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            entry.AssertIsInstance("d", BuiltinTypeId.Float);
+                analysis.Should().HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").OfType(BuiltinTypeId.Float)
+                    .And.HaveVariable("f").WithValue<FunctionInfo>()
+                    .Which.Should().HaveFunctionScope()
+                    .Which.Should().HaveParameter("v").OfTypes("C", "D");
+            }
         }
     }
 }

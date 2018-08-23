@@ -4,9 +4,7 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
 using Microsoft.PythonTools.Analysis.Analyzer;
-using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
-using Microsoft.PythonTools.Interpreter.Ast;
 using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
@@ -28,6 +26,14 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         }
 
         protected override string Identifier => nameof(AnalysisValue);
+        
+        public AndConstraint<TAssertions> HaveName(string name, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(string.Equals(Subject.Name, name, StringComparison.Ordinal))
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {GetName()} to have name '{name}'{{reason}}.");
+
+            return new AndConstraint<TAssertions>((TAssertions)this);
+        }
 
         public AndConstraint<TAssertions> HaveType(BuiltinTypeId typeId, string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(Subject.TypeId == typeId)
@@ -127,6 +133,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             }
         }
 
-        protected string GetName() => $"value {AssertionsUtilities.GetName(Subject)} in a scope {AssertionsUtilities.GetName(OwnerScope)}";
+        protected virtual string GetName() 
+            => $"value {GetQuotedName(Subject)} in a scope {GetQuotedName(OwnerScope)}";
     }
 }

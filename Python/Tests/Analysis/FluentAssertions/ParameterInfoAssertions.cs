@@ -16,18 +16,17 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.Values;
+using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal sealed class AnalysisValueTestInfo<TAnalysisValue> where TAnalysisValue : AnalysisValue {
-        public TAnalysisValue Value { get; }
-        public InterpreterScope OwnerScope { get; }
+    internal sealed class ParameterInfoAssertions : AnalysisValueAssertions<ParameterInfo, ParameterInfoAssertions> {
+        public ParameterInfoAssertions(ParameterInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
 
-        public AnalysisValueTestInfo(TAnalysisValue value, InterpreterScope ownerScope) {
-            Value = value;
-            OwnerScope = ownerScope;
-        }
-        
-        public static implicit operator TAnalysisValue(AnalysisValueTestInfo<TAnalysisValue> ti) => ti.Value;
+        protected override string Identifier => nameof(ParameterInfo);
+
+        protected override string GetName()
+            => $"parameter {GetQuotedName(Subject)} in a function {GetQuotedName(Subject.Function)}";
     }
 }

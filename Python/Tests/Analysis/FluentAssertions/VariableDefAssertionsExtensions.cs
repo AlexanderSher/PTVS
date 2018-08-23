@@ -62,5 +62,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public static AndWhichConstraint<InterpreterScopeAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue 
             => andWhichConstraint.WithValue<InterpreterScopeAssertions, TValue>(because, reasonArgs);
+
+        public static AndWhichConstraint<FunctionScopeAssertions, AnalysisValueTestInfo<TValue>> WithValue<TValue>(this AndWhichConstraint<FunctionScopeAssertions, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) where TValue : AnalysisValue 
+            => andWhichConstraint.WithValue<FunctionScopeAssertions, TValue>(because, reasonArgs);
     }
 }

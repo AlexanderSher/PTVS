@@ -20,6 +20,9 @@ using Microsoft.PythonTools.Analysis.Analyzer;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal static class InterpreterScopeAssertionsExtensions {
+        public static FunctionScopeAssertions Should(this FunctionScope functionScope) 
+            => new FunctionScopeAssertions(functionScope);
+
         public static InterpreterScopeAssertions Should(this InterpreterScope interpreterScope) 
             => new InterpreterScopeAssertions(interpreterScope);
     }

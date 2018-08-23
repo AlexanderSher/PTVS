@@ -154,36 +154,32 @@ dctv_s_i_items : ItemsView[str, int] = ...
 dctv_s_i_item_1, dctv_s_i_item_2 = next(iter(dctv_s_i_items))
 ");
                 var analysis = await server.GetAnalysisAsync(uri);
+
+                analysis.ProjectState.Modules.TryGetImportedModule("typing", out var module).Should().BeTrue();
+                module.AnalysisModule.Should().BeOfType<TypingModuleInfo>();
+
+                analysis.Should().HaveVariable("i").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("lst").OfType(BuiltinTypeId.List)
+                    .And.HaveVariable("lst_i").OfType(BuiltinTypeId.List)
+                    .And.HaveVariable("lst_i_0").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("dct").OfType(BuiltinTypeId.Dict)
+                    .And.HaveVariable("dct_s_i").OfType(BuiltinTypeId.Dict).WithDescription("dict[str, int]")
+                    .And.HaveVariable("dct_s_i_a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("dct_s_i_keys").OfType(BuiltinTypeId.DictKeys).WithDescription("dict_keys[str]")
+                    .And.HaveVariable("dct_s_i_key").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("dct_s_i_values").OfType(BuiltinTypeId.DictValues).WithDescription("dict_values[int]")
+                    .And.HaveVariable("dct_s_i_value").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("dct_s_i_items").OfType(BuiltinTypeId.DictItems).WithDescription("dict_items[tuple[str, int]]")
+                    .And.HaveVariable("dct_s_i_item_1").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("dct_s_i_item_2").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("dctv_s_i_keys").OfType(BuiltinTypeId.DictKeys)
+                    .And.HaveVariable("dctv_s_i_key").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("dctv_s_i_values").OfType(BuiltinTypeId.DictValues)
+                    .And.HaveVariable("dctv_s_i_value").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("dctv_s_i_items").OfType(BuiltinTypeId.DictItems)
+                    .And.HaveVariable("dctv_s_i_item_1").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("dctv_s_i_item_2").OfType(BuiltinTypeId.Int);
             }
-
-            //Assert.IsTrue(analyzer.Analyzer.Modules.TryGetImportedModule("typing", out var mod));
-            //Assert.IsInstanceOfType(mod.AnalysisModule.Single(), typeof(Microsoft.PythonTools.Analysis.Values.TypingModuleInfo));
-
-            //analyzer.AssertIsInstance("i", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("lst", BuiltinTypeId.List);
-            //analyzer.AssertIsInstance("lst_i", BuiltinTypeId.List);
-            //analyzer.AssertIsInstance("lst_i_0", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("dct", BuiltinTypeId.Dict);
-            //analyzer.AssertIsInstance("dct_s_i", BuiltinTypeId.Dict);
-            //analyzer.AssertDescription("dct_s_i", "dict[str, int]");
-            //analyzer.AssertIsInstance("dct_s_i_a", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("dct_s_i_keys", BuiltinTypeId.DictKeys);
-            //analyzer.AssertDescription("dct_s_i_keys", "dict_keys[str]");
-            //analyzer.AssertIsInstance("dct_s_i_key", BuiltinTypeId.Str);
-            //analyzer.AssertIsInstance("dct_s_i_values", BuiltinTypeId.DictValues);
-            //analyzer.AssertDescription("dct_s_i_values", "dict_values[int]");
-            //analyzer.AssertIsInstance("dct_s_i_value", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("dct_s_i_items", BuiltinTypeId.DictItems);
-            //analyzer.AssertDescription("dct_s_i_items", "dict_items[tuple[str, int]]");
-            //analyzer.AssertIsInstance("dct_s_i_item_1", BuiltinTypeId.Str);
-            //analyzer.AssertIsInstance("dct_s_i_item_2", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("dctv_s_i_keys", BuiltinTypeId.DictKeys);
-            //analyzer.AssertIsInstance("dctv_s_i_key", BuiltinTypeId.Str);
-            //analyzer.AssertIsInstance("dctv_s_i_values", BuiltinTypeId.DictValues);
-            //analyzer.AssertIsInstance("dctv_s_i_value", BuiltinTypeId.Int);
-            //analyzer.AssertIsInstance("dctv_s_i_items", BuiltinTypeId.DictItems);
-            //analyzer.AssertIsInstance("dctv_s_i_item_1", BuiltinTypeId.Str);
-            //analyzer.AssertIsInstance("dctv_s_i_item_2", BuiltinTypeId.Int);
         }
 
         [TestMethod, Priority(0)]
@@ -352,7 +348,7 @@ g_i = next(g_g)
                 analysis.Should().HaveVariable("g_g").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("g_i").OfType(BuiltinTypeId.Str)
                     .And.HaveVariable("g").WithValue<FunctionInfo>()
-                    .Which.Should().HaveScope()
+                    .Which.Should().HaveFunctionScope()
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
             }
         }

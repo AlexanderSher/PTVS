@@ -20,52 +20,59 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
 using Microsoft.PythonTools.Analysis.Analyzer;
-using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal sealed class InterpreterScopeAssertions : ReferenceTypeAssertions<InterpreterScope, InterpreterScopeAssertions> {
-        public InterpreterScopeAssertions(InterpreterScope interpreterScope) {
+    internal sealed class InterpreterScopeAssertions : InterpreterScopeAssertions<InterpreterScope, InterpreterScopeAssertions> {
+        public InterpreterScopeAssertions(InterpreterScope interpreterScope) : base(interpreterScope) { }
+    }
+
+    [ExcludeFromCodeCoverage]
+    internal class InterpreterScopeAssertions<TScope, TScopeAssertions> : ReferenceTypeAssertions<TScope, TScopeAssertions>
+        where TScope : InterpreterScope
+        where TScopeAssertions : InterpreterScopeAssertions<TScope, TScopeAssertions> {
+
+        public InterpreterScopeAssertions(TScope interpreterScope) {
             Subject = interpreterScope;
         }
 
         protected override string Identifier => nameof(InterpreterScope);
 
-        public AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<TScopeAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
             NotBeNull();
 
             Execute.Assertion.ForCondition(Subject.TryGetVariable(name, out var variableDef))
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected module '{Subject.Name}' to have variable {name}{{reason}}.");
+                .FailWith($"Expected module '{Subject.Name}' to have variable '{name}'{{reason}}.");
 
-            return new AndWhichConstraint<InterpreterScopeAssertions, VariableDefTestInfo>(this, new VariableDefTestInfo(variableDef, name, Subject));
+            return new AndWhichConstraint<TScopeAssertions, VariableDefTestInfo>((TScopeAssertions)this, new VariableDefTestInfo(variableDef, name, Subject));
         }
         
-        public AndConstraint<InterpreterScopeAssertions> HaveClasses(params string[] classNames)
+        public AndConstraint<TScopeAssertions> HaveClasses(params string[] classNames)
             => HaveClasses(classNames, string.Empty);
 
-        public AndConstraint<InterpreterScopeAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TScopeAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             NotBeNull();
 
             foreach (var className in classNames) {
                 HaveVariable(className, because, reasonArgs).Which.Should().HaveMemberType(PythonMemberType.Class, because, reasonArgs);
             }
 
-            return new AndConstraint<InterpreterScopeAssertions>(this);
+            return new AndConstraint<TScopeAssertions>((TScopeAssertions)this);
         }
 
-        public AndConstraint<InterpreterScopeAssertions> HaveFunctions(params string[] functionNames) 
+        public AndConstraint<TScopeAssertions> HaveFunctions(params string[] functionNames) 
             => HaveFunctions(functionNames, string.Empty);
 
-        public AndConstraint<InterpreterScopeAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TScopeAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
             Subject.Should().NotBeNull();
 
             foreach (var functionName in functionNames) {
                 HaveVariable(functionName, because, reasonArgs).Which.Should().HaveMemberType(PythonMemberType.Function, because, reasonArgs);
             }
 
-            return new AndConstraint<InterpreterScopeAssertions>(this);
+            return new AndConstraint<TScopeAssertions>((TScopeAssertions)this);
         }
     }
 }

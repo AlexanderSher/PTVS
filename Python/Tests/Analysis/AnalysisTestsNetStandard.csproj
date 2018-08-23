@@ -17,7 +17,6 @@
     <!--CreateAnalyzer-->
     <Compile Remove="AnalysisTest.cs" />
     <Compile Remove="BaseAnalysisTest.cs" />
-    <Compile Remove="FunctionBodyAnalysisTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <!--Mocks-->

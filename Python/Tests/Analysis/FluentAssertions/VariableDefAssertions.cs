@@ -67,28 +67,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public AndConstraint<VariableDefAssertions> HaveTypes(IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
             var languageVersionIs3X = _languageVersion.Is3x();
-            var expectedTypeIds = typeIds.Select(t => {
-                switch (t) {
-                    case BuiltinTypeId.Str:
-                        return languageVersionIs3X ? BuiltinTypeId.Unicode : BuiltinTypeId.Bytes;
-                    case BuiltinTypeId.StrIterator:
-                        return languageVersionIs3X ? BuiltinTypeId.UnicodeIterator : BuiltinTypeId.BytesIterator;
-                    default:
-                        return t;
-                }
-            }).ToArray();
-
-            var missingTypeIds = expectedTypeIds.Except(Flatten(Subject.Types).Select(av => av.PythonType?.TypeId ?? av.TypeId)).ToArray();
-
-            if (missingTypeIds.Any()) {
-                var message = expectedTypeIds.Length > 1
-                    ? $"Expected {_moduleName}.{_name} to have types {string.Join(", ", expectedTypeIds)}{{reason}}, but couldn't find {string.Join(", ", missingTypeIds)}"
-                    : $"Expected {_moduleName}.{_name} to have type {expectedTypeIds[0]}{{reason}}";
-
-                Execute.Assertion
-                    .BecauseOf(because, reasonArgs)
-                    .FailWith(message);
-            }
+            AssertTypeIds(Flatten(Subject.Types).Select(av => av.PythonType?.TypeId ?? av.TypeId), typeIds, $"{_moduleName}.{_name}", languageVersionIs3X, because, reasonArgs);
 
             return new AndConstraint<VariableDefAssertions>(this);
         }

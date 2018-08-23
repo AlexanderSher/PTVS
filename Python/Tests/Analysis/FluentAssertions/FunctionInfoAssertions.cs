@@ -19,6 +19,7 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
+using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
@@ -26,24 +27,27 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public FunctionInfoAssertions(FunctionInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) { }
 
         protected override string Identifier => nameof(FunctionInfo);
-        
-        public AndWhichConstraint<FunctionInfoAssertions, FunctionScope> HaveScope(string because = "", params object[] reasonArgs) {
+
+        public AndWhichConstraint<FunctionInfoAssertions, FunctionScope> HaveFunctionScope(string because = "", params object[] reasonArgs) {
             var unit = Subject.AnalysisUnit;
             Execute.Assertion.ForCondition(unit != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} to have analysis unit specified{{reason}}.");
+                .FailWith($"Expected {GetName()} to have analysis unit specified{{reason}}.");
 
             var scope = unit.Scope;
             Execute.Assertion.ForCondition(scope != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} analysis unit to have scope specified{{reason}}.");
+                .FailWith($"Expected {GetName()} analysis unit to have scope specified{{reason}}.");
 
             var typedScope = scope as FunctionScope;
             Execute.Assertion.ForCondition(typedScope != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} analysis unit scope to be of type {nameof(FunctionScope)}{{reason}}, but it has type {scope.GetType()}.");
+                .FailWith($"Expected {GetName()} analysis unit scope to be of type {nameof(FunctionScope)}{{reason}}, but it has type {scope.GetType()}.");
 
             return new AndWhichConstraint<FunctionInfoAssertions, FunctionScope>(this, typedScope);
         }
+
+        protected override string GetName()
+            => $"function {GetQuotedName(Subject)} in a scope {GetQuotedName(OwnerScope)}";
     }
 }
