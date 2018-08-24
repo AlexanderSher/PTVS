@@ -7245,7 +7245,7 @@ e = Employee('Guido')
 
         protected virtual AnalysisLimits GetLimits() => AnalysisLimits.GetDefaultLimits(); 
 
-/*
+
         /// <summary>
         /// Returns all the permutations of the set [0 ... n-1]
         /// </summary>
@@ -7265,20 +7265,6 @@ e = Employee('Guido')
             }
         }
 
-        private IEnumerable<PythonAnalysis> MakeModulePermutations(string prefix, string[] code) {
-            foreach (var p in Permutations(code.Length)) {
-                using (var state = CreateAnalyzer()) {
-                    for (int i = 0; i < code.Length; i++) {
-                        state.AddModule("{0}{1}".FormatInvariant(prefix, (p[i] + 1)), code[p[i]]);
-                    }
-
-                    state.WaitForAnalysis();
-
-                    yield return state;
-                }
-            }
-        }
-
         /// <summary>
         /// For a given set of module definitions, build analysis info for each unique permutation
         /// of the ordering of the defintions and run the test against each analysis.
@@ -7286,10 +7272,27 @@ e = Employee('Guido')
         /// <param name="prefix">Prefix for the module names. The first source text will become prefix + "1", etc.</param>
         /// <param name="code">The source code for each of the modules</param>
         /// <param name="test">The test to run against the analysis</param>
-        private void PermutedTest(string prefix, string[] code, Action<PythonAnalysis> test) {
-            foreach (var pe in MakeModulePermutations(prefix, code)) {
-                test(pe);
-                Console.WriteLine("--- End Permutation ---");
+        private async Task PermutedTestAsync(string prefix, string[] code, Action<ModuleAnalysis[]> test) {
+            foreach (var p in Permutations(code.Length)) {
+                using (var server = await CreateServerAsync()) {
+                    var entries = new ProjectEntry[code.Length];
+                    for (var i = 0; i < code.Length; i++) {
+                        var name = "{0}{1}".FormatInvariant(prefix, p[i] + 1);
+                        var content = code[p[i]];
+                        var filename = name.Replace('.', '\\') + ".py";
+
+                        entries[i] = server.AddModuleWithContent(name, filename, content);
+                    }
+
+                    var analysises = entries
+                        .Select(e => e.GetAnalysisAsync(cancellationToken: new CancellationTokenSource(5000).Token))
+                        .ToArray();
+
+                    await Task.WhenAll(analysises);
+
+                    test(analysises.Select(a => a.Result).ToArray());
+                    Trace.WriteLine($"--- End Permutation [{string.Join(',',p)}] ---");
+                }
             }
         }
 
@@ -7307,9 +7310,8 @@ e = Employee('Guido')
             }
             return result.ToArray();
         }
-*/
-        #endregion
 
+        #endregion
     }
     
     [TestClass]
