@@ -66,6 +66,27 @@ namespace Microsoft.PythonTools.Analysis {
         public static void EnqueueItem(this Server server, Uri uri) 
             => server.EnqueueItem((IDocument)server.ProjectFiles.GetEntry(uri));
 
+        public static void EnqueueItems(this Server server, params IDocument[] projectEntries) {
+            foreach (var document in projectEntries) {
+                server.EnqueueItem(document);
+            }
+        }
+
+        public static Task<ModuleAnalysis> AddModuleAndGetAnalysisAsync(this Server server, string content, int waitingTime = 30000) 
+            => server.AddModuleAndGetAnalysisAsync("test-module", "test-module.py", content, waitingTime);
+
+        public static Task<ModuleAnalysis> AddModuleAndGetAnalysisAsync(this Server server, string moduleName, string relativePath, string content, int waitingTime = 3000) {
+            var entry = server.AddModuleWithContent(moduleName, relativePath, content);
+            return entry.GetAnalysisAsync(cancellationToken: new CancellationTokenSource(waitingTime).Token);
+        }
+
+        public static ProjectEntry AddModuleWithContent(this Server server, string moduleName, string relativePath, string content) {
+            var entry = (ProjectEntry)server.Analyzer.AddModule(moduleName, TestData.GetPath(relativePath));
+            entry.ResetDocument(0, content);
+            server.EnqueueItem(entry);
+            return entry;
+        }
+
         public static Task SendDidOpenTextDocument(this Server server, string path, string content, string languageId = null) 
             => server.SendDidOpenTextDocument(new Uri(path), content, languageId);
 
@@ -75,6 +96,19 @@ namespace Microsoft.PythonTools.Analysis {
                     uri = uri,
                     text = content,
                     languageId = languageId ?? "python"
+                }
+            });
+        }
+
+        public static void SendDidChangeTextDocument(this Server server, Uri uri, string text) {
+            server.DidChangeTextDocument(new DidChangeTextDocumentParams {
+                textDocument = new VersionedTextDocumentIdentifier {
+                    uri = uri
+                }, 
+                contentChanges = new [] {
+                    new TextDocumentContentChangedEvent {
+                        text = text,
+                    }, 
                 }
             });
         }

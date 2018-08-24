@@ -22,7 +22,7 @@ using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class ParameterInfoAssertions : AnalysisValueAssertions<ParameterInfo, ParameterInfoAssertions> {
-        public ParameterInfoAssertions(ParameterInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public ParameterInfoAssertions(AnalysisValueTestInfo<ParameterInfo> subject) : base(subject) {}
 
         protected override string Identifier => nameof(ParameterInfo);
 

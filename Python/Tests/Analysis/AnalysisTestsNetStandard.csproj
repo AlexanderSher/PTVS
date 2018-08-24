@@ -14,17 +14,13 @@
   <Import Project="..\..\Product\NetStandard.settings" />
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>
-    <!--CreateAnalyzer-->
-    <Compile Remove="AnalysisTest.cs" />
-    <Compile Remove="BaseAnalysisTest.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <!--Mocks-->
     <Compile Remove="ModuleTableTests.cs" />
     <Compile Remove="ProcessHelperTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <!--PTVS-specific-->
+    <Compile Remove="BaseAnalysisTest.cs" />
     <Compile Remove="AnalysisTest.Perf.cs" />
     <Compile Remove="ProcessOutputTests.cs" />
     <Compile Remove="SocketUtilsTests.cs" />

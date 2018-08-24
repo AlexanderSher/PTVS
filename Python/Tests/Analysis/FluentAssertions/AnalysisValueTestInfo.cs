@@ -21,10 +21,12 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class AnalysisValueTestInfo<TAnalysisValue> where TAnalysisValue : AnalysisValue {
         public TAnalysisValue Value { get; }
+        public string ScopeDescription { get; }
         public InterpreterScope OwnerScope { get; }
 
-        public AnalysisValueTestInfo(TAnalysisValue value, InterpreterScope ownerScope) {
+        public AnalysisValueTestInfo(TAnalysisValue value, string scopeDescription, InterpreterScope ownerScope) {
             Value = value;
+            ScopeDescription = scopeDescription;
             OwnerScope = ownerScope;
         }
         

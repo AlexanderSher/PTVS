@@ -15,13 +15,12 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class BuiltinInstanceInfoAssertions : AnalysisValueAssertions<BuiltinInstanceInfo, BuiltinInstanceInfoAssertions> {
-        public BuiltinInstanceInfoAssertions(BuiltinInstanceInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public BuiltinInstanceInfoAssertions(AnalysisValueTestInfo<BuiltinInstanceInfo> subject) : base(subject) {}
 
         protected override string Identifier => nameof(BuiltinInstanceInfo);
     }

@@ -44,9 +44,9 @@ b = 3.14
                 await server.SendDidOpenTextDocument(uri, code);
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveVariable("f").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
-                    .Which.Should().HaveParameter("a").OfTypes(BuiltinTypeId.Int)
+                analysis.Should().HaveFunctionInfoVariable("f")
+                    .Which.Should()
+                        .HaveParameter("a").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("a").WithValue<ParameterInfo>()
                     .And.HaveParameter("b").OfTypes(BuiltinTypeId.Float)
                     .And.HaveVariable("b").WithValue<ParameterInfo>();
@@ -70,8 +70,7 @@ r_a = f(1, 3.14)
                 analysis.Should()
                         .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("r_b").OfType(BuiltinTypeId.Float)
-                    .And.HaveVariable("f").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
+                    .And.HaveFunctionInfoVariable("f")
                     .Which.Should()
                         .HaveParameter("a").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
                     .And.HaveParameter("b").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
@@ -108,8 +107,7 @@ r_a = g(1, 3.14)
                 analysis.Should()
                         .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("r_b").OfType(BuiltinTypeId.Float)
-                    .And.HaveVariable("f").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
+                    .And.HaveFunctionInfoVariable("f")
                     .Which.Should()
                         .HaveParameter("a").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
                     .And.HaveParameter("b").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
@@ -117,8 +115,7 @@ r_a = g(1, 3.14)
                     .And.HaveReturnValue().WithValue<ParameterInfo>()
                     .Which.Should().HaveName("a");
 
-                analysis.Should().HaveVariable("g").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
+                analysis.Should().HaveFunctionInfoVariable("g")
                     .Which.Should()
                         .HaveParameter("x").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
                     .And.HaveParameter("y").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float)
@@ -156,8 +153,7 @@ d = f(D())";
 
                 analysis.Should().HaveVariable("c").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("d").OfType(BuiltinTypeId.Float)
-                    .And.HaveVariable("f").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
+                    .And.HaveFunctionInfoVariable("f")
                     .Which.Should().HaveParameter("v").OfTypes("C", "D");
             }
         }

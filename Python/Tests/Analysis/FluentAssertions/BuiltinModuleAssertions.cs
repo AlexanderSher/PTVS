@@ -24,7 +24,7 @@ using Microsoft.PythonTools.Interpreter;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class BuiltinModuleAssertions : AnalysisValueAssertions<BuiltinModule, BuiltinModuleAssertions> {
-        public BuiltinModuleAssertions(BuiltinModule subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public BuiltinModuleAssertions(AnalysisValueTestInfo<BuiltinModule> subject) : base(subject) {}
 
         protected override string Identifier => nameof(BuiltinModule);
 

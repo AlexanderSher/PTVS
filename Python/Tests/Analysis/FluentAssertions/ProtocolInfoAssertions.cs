@@ -21,7 +21,7 @@ using Microsoft.PythonTools.Analysis.Values;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class ProtocolInfoAssertions : AnalysisValueAssertions<ProtocolInfo, ProtocolInfoAssertions> {
-        public ProtocolInfoAssertions(ProtocolInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public ProtocolInfoAssertions(AnalysisValueTestInfo<ProtocolInfo> subject) : base(subject) {}
 
         protected override string Identifier => nameof(ProtocolInfo);
     }

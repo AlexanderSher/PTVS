@@ -32,9 +32,27 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         }
 
         protected override string Identifier => nameof(ModuleAnalysis);
+        
+        public AndWhichConstraint<ModuleAnalysisAssertions, IPythonModule> HavePythonModuleVariable(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+            var constraint = _interpreterScopeAssertions.HavePythonModuleVariable(name, because, reasonArgs);
+            return new AndWhichConstraint<ModuleAnalysisAssertions, IPythonModule>(this, constraint.Which);
+        }
+
+        public AndWhichConstraint<ModuleAnalysisAssertions, ClassScope> HaveClassInfoVariable(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+            var constraint = _interpreterScopeAssertions.HaveClassInfoVariable(name, because, reasonArgs);
+            return new AndWhichConstraint<ModuleAnalysisAssertions, ClassScope>(this, constraint.Which);
+        }
+
+        public AndWhichConstraint<ModuleAnalysisAssertions, FunctionScope> HaveFunctionInfoVariable(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+            var constraint = _interpreterScopeAssertions.HaveFunctionInfoVariable(name, because, reasonArgs);
+            return new AndWhichConstraint<ModuleAnalysisAssertions, FunctionScope>(this, constraint.Which);
+        }
 
         public AndWhichConstraint<ModuleAnalysisAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
-            NotBeNull();
+            NotBeNull(because, reasonArgs);
             var constraint = _interpreterScopeAssertions.HaveVariable(name, because, reasonArgs);
             return new AndWhichConstraint<ModuleAnalysisAssertions, VariableDefTestInfo>(this, constraint.Which);
         }
@@ -43,7 +61,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             => HaveClasses(classNames, string.Empty);
 
         public AndConstraint<ModuleAnalysisAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
-            NotBeNull();
+            NotBeNull(because, reasonArgs);
             _interpreterScopeAssertions.HaveClasses(classNames, because, reasonArgs);
             return new AndConstraint<ModuleAnalysisAssertions>(this);
         }
@@ -52,8 +70,14 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             => HaveFunctions(functionNames, string.Empty);
 
         public AndConstraint<ModuleAnalysisAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
-            NotBeNull();
+            NotBeNull(because, reasonArgs);
             _interpreterScopeAssertions.HaveFunctions(functionNames, because, reasonArgs);
+            return new AndConstraint<ModuleAnalysisAssertions>(this);
+        }
+
+        public AndConstraint<ModuleAnalysisAssertions> NotHaveVariable(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+            _interpreterScopeAssertions.NotHaveVariable(name, because, reasonArgs);
             return new AndConstraint<ModuleAnalysisAssertions>(this);
         }
     }

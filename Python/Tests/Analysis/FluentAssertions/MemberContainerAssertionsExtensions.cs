@@ -22,9 +22,6 @@ using Microsoft.PythonTools.Interpreter;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal static class MemberContainerAssertionsExtensions {
-        public static MemberContainerAssertions<IMemberContainer> Should(this IMemberContainer memberContainer)
-            => new MemberContainerAssertions<IMemberContainer>(memberContainer);
-
         public static AndWhichConstraint<TAssertions, TMember> OfMemberType<TMember, TAssertions> (this AndWhichConstraint<TAssertions, TMember> constraint, PythonMemberType memberType, string because = "", params object[] reasonArgs)
             where TMember : IMember {
 

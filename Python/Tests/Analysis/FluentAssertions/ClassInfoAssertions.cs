@@ -24,7 +24,7 @@ using Microsoft.PythonTools.Analysis.Values;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class ClassInfoAssertions : AnalysisValueAssertions<ClassInfo, ClassInfoAssertions> {
-        public ClassInfoAssertions(ClassInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public ClassInfoAssertions(AnalysisValueTestInfo<ClassInfo> subject) : base(subject) {}
 
         protected override string Identifier => nameof(ClassInfo);
         

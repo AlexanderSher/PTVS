@@ -20,6 +20,7 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 using FluentAssertions.Primitives;
 using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
@@ -39,8 +40,32 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         protected override string Identifier => nameof(InterpreterScope);
 
+        public AndWhichConstraint<TScopeAssertions, IPythonModule> HavePythonModuleVariable(string name, string because = "", params object[] reasonArgs) {
+            var assertion = HaveVariable(name, because, reasonArgs)
+                .Which.Should().HaveValue<BuiltinModule>()
+                .Which.Should().HavePythonModule();
+
+            return new AndWhichConstraint<TScopeAssertions, IPythonModule>((TScopeAssertions)this, assertion.Which);
+        }
+
+        public AndWhichConstraint<TScopeAssertions, ClassScope> HaveClassInfoVariable(string name, string because = "", params object[] reasonArgs) {
+            var assertion = HaveVariable(name, because, reasonArgs)
+                .Which.Should().HaveValue<ClassInfo>()
+                .Which.Should().HaveScope();
+
+            return new AndWhichConstraint<TScopeAssertions, ClassScope>((TScopeAssertions)this, assertion.Which);
+        }
+
+        public AndWhichConstraint<TScopeAssertions, FunctionScope> HaveFunctionInfoVariable(string name, string because = "", params object[] reasonArgs) {
+            var assertion = HaveVariable(name, because, reasonArgs)
+                .Which.Should().HaveValue<FunctionInfo>()
+                .Which.Should().HaveFunctionScope();
+
+            return new AndWhichConstraint<TScopeAssertions, FunctionScope>((TScopeAssertions)this, assertion.Which);
+        }
+
         public AndWhichConstraint<TScopeAssertions, VariableDefTestInfo> HaveVariable(string name, string because = "", params object[] reasonArgs) {
-            NotBeNull();
+            NotBeNull(because, reasonArgs);
 
             Execute.Assertion.ForCondition(Subject.TryGetVariable(name, out var variableDef))
                 .BecauseOf(because, reasonArgs)
@@ -71,6 +96,16 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             foreach (var functionName in functionNames) {
                 HaveVariable(functionName, because, reasonArgs).Which.Should().HaveMemberType(PythonMemberType.Function, because, reasonArgs);
             }
+
+            return new AndConstraint<TScopeAssertions>((TScopeAssertions)this);
+        }
+
+        public AndConstraint<TScopeAssertions> NotHaveVariable(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+
+            Execute.Assertion.ForCondition(!Subject.TryGetVariable(name, out _))
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected module '{Subject.Name}' to have no variable '{name}'{{reason}}.");
 
             return new AndConstraint<TScopeAssertions>((TScopeAssertions)this);
         }

@@ -24,7 +24,7 @@ using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class FunctionInfoAssertions : AnalysisValueAssertions<FunctionInfo, FunctionInfoAssertions> {
-        public FunctionInfoAssertions(FunctionInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) { }
+        public FunctionInfoAssertions(AnalysisValueTestInfo<FunctionInfo> subject) : base(subject) { }
 
         protected override string Identifier => nameof(FunctionInfo);
 

@@ -347,8 +347,7 @@ g_i = next(g_g)
 
                 analysis.Should().HaveVariable("g_g").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("g_i").OfType(BuiltinTypeId.Str)
-                    .And.HaveVariable("g").WithValue<FunctionInfo>()
-                    .Which.Should().HaveFunctionScope()
+                    .And.HaveFunctionInfoVariable("g")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
             }
         }

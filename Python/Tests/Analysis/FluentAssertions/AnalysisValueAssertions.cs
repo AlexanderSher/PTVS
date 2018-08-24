@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using FluentAssertions.Execution;
@@ -11,7 +12,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal class AnalysisValueAssertions<TAnalysisValue> : AnalysisValueAssertions<TAnalysisValue, AnalysisValueAssertions<TAnalysisValue>>
         where TAnalysisValue : AnalysisValue {
 
-        public AnalysisValueAssertions(TAnalysisValue subject, InterpreterScope ownerScope) : base(subject, ownerScope) { }
+        public AnalysisValueAssertions(AnalysisValueTestInfo<TAnalysisValue> subject) : base(subject) { }
     }
 
     internal class AnalysisValueAssertions<TAnalysisValue, TAssertions> : ReferenceTypeAssertions<TAnalysisValue, TAssertions>
@@ -19,9 +20,11 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         where TAssertions : AnalysisValueAssertions<TAnalysisValue, TAssertions> {
 
         protected InterpreterScope OwnerScope { get; }
+        protected string ScopeDescription { get; }
 
-        public AnalysisValueAssertions(TAnalysisValue subject, InterpreterScope ownerScope) {
-            OwnerScope = ownerScope;
+        public AnalysisValueAssertions(AnalysisValueTestInfo<TAnalysisValue> subject) {
+            OwnerScope = subject.OwnerScope;
+            ScopeDescription = subject.ScopeDescription ?? $"in a scope {GetQuotedName(OwnerScope)}";
             Subject = subject;
         }
 
@@ -40,6 +43,20 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {GetName()} to be {typeId}{{reason}}, but it is {Subject.TypeId}.");
 
+            return new AndConstraint<TAssertions>((TAssertions)this);
+        }
+
+        public AndConstraint<TAssertions> HaveMemberOfTypes(string memberName, params BuiltinTypeId[] typeIds)
+            => HaveMemberOfTypes(memberName, typeIds, string.Empty);
+
+        public AndConstraint<TAssertions> HaveMemberOfTypes(string memberName, IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+
+            Execute.Assertion.ForCondition(GetMember(memberName, out var member, out var errorMessage))
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
+            
+            AssertTypeIds(member, typeIds, memberName, Is3X(OwnerScope), because, reasonArgs);
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
 
@@ -112,7 +129,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 .BecauseOf(because, reasonArgs)
                 .FailWith(errorMessage);
 
-            return new AndWhichConstraint<TAssertions, AnalysisValueTestInfo<TMember>>((TAssertions)this, new AnalysisValueTestInfo<TMember>(typedMember, OwnerScope));
+            return new AndWhichConstraint<TAssertions, AnalysisValueTestInfo<TMember>>((TAssertions)this, new AnalysisValueTestInfo<TMember>(typedMember, null, OwnerScope));
         }
 
         private bool GetMember<TMember>(string name, out TMember typedMember, out string errorMessage) where TMember : AnalysisValue {
@@ -123,7 +140,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 errorMessage = member != null 
                     ? typedMember != null 
                         ? null
-                        : $"Expected {GetName()} to have a member {name} of type {typeof(TMember)}{{reason}}, but its type is {member.GetType()}."
+                        : $"Expected {GetName()} to have a member '{name}' of type {typeof(TMember)}{{reason}}, but its type is {member.GetType()}."
                     : $"Expected {GetName()} to have a member {name} of type {typeof(TMember)}{{reason}}.";
                 return typedMember != null;
             } catch (Exception e) {
@@ -133,7 +150,22 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             }
         }
 
+        private bool GetMember(string name, out IAnalysisSet member, out string errorMessage) {
+            try { 
+                member = Subject.GetMember(null, new AnalysisUnit(null, null, OwnerScope, true), name);
+
+                errorMessage = member != null 
+                    ? null
+                    : $"Expected {GetName()} to have a member {name}{{reason}}.";
+                return member != null;
+            } catch (Exception e) {
+                errorMessage = $"Expected {GetName()} to have a member {name}{{reason}}, but {nameof(GetMember)} has failed with exception: {e}.";
+                member = null;
+                return false;
+            }
+        }
+
         protected virtual string GetName() 
-            => $"value {GetQuotedName(Subject)} in a scope {GetQuotedName(OwnerScope)}";
+            => $"value {GetQuotedName(Subject)} {ScopeDescription}";
     }
 }

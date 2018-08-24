@@ -264,8 +264,8 @@ R_A3 = R_A1.r_A()");
 
                 foreach (var fnName in new[] { "seed", "randrange", "gauss" }) {
                     analysis.Should().HaveVariable(fnName)
-                        .Which.Should().HaveType(BuiltinTypeId.BuiltinMethodDescriptor)
-                        .And.HaveValue<BoundBuiltinMethodInfo>()
+                        .OfType(BuiltinTypeId.BuiltinMethodDescriptor)
+                        .WithValue<BoundBuiltinMethodInfo>()
                         .Which.Should().HaveOverloadWithParametersAt(0);
                 }
             }
@@ -278,8 +278,7 @@ R_A3 = R_A1.r_A()");
                 await server.SendDidOpenTextDocument(uri, "import datetime");
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                var datetimeType = analysis.Should().HaveVariable("datetime").WithValue<BuiltinModule>()
-                    .Which.Should().HavePythonModule()
+                var datetimeType = analysis.Should().HavePythonModuleVariable("datetime")
                     .Which.Should().HaveClass("datetime")
                     .Which;
 
@@ -307,11 +306,8 @@ class BankAccount(object):
                 await server.SendDidOpenTextDocument(uri, code);
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveVariable("BankAccount")
-                    .WithValue<ClassInfo>()
-                    .Which.Should().HaveScope()
-                    .Which.Should().HaveVariable("overdrawn")
-                    .WithValue<FunctionInfo>()
+                analysis.Should().HaveClassInfoVariable("BankAccount")
+                    .Which.Should().HaveVariable("overdrawn").WithValue<FunctionInfo>()
                     .Which.Should().HaveOverloadAt(0)
                     .Which.Should().HaveSingleReturnType("bool");
             }
@@ -384,8 +380,7 @@ class BankAccount(object):
 
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
-                    .Which.Should().HavePythonModule()
+                var type = analysis.Should().HavePythonModuleVariable("Package")
                     .Which.Should().HaveNestedModule("Module")
                     .Which.Should().HaveClass("Class")
                     .Which;
@@ -415,8 +410,7 @@ class BankAccount(object):
 
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
-                    .Which.Should().HavePythonModule()
+                var type = analysis.Should().HavePythonModuleVariable("Package")
                     .Which.Should().HaveNestedModule("Module")
                     .Which.Should().HaveClass("Class")
                     .Which;
@@ -442,8 +436,7 @@ class BankAccount(object):
 
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
-                    .Which.Should().HavePythonModule()
+                var type = analysis.Should().HavePythonModuleVariable("Package")
                     .Which.Should().HaveNestedModule("Module")
                     .Which.Should().HaveClass("Class")
                     .Which;
@@ -473,8 +466,7 @@ class BankAccount(object):
 
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                var type = analysis.Should().HaveVariable("Package").WithValue<BuiltinModule>()
-                    .Which.Should().HavePythonModule()
+                var type = analysis.Should().HavePythonModuleVariable("Package")
                     .Which.Should().HaveNestedModule("Module")
                     .Which.Should().HaveClass("Class")
                     .Which;
@@ -531,8 +523,7 @@ class BankAccount(object):
                 await server.SendDidOpenTextDocument(uri, "import numpy.core.numeric as NP; ndarray = NP.ndarray");
                 var analysis = await server.GetAnalysisAsync(uri, 15000);
 
-                analysis.Should().HaveVariable("ndarray")
-                    .Which.Should().HaveValue<BuiltinClassInfo>();
+                analysis.Should().HaveVariable("ndarray").WithValue<BuiltinClassInfo>();
             }
         }
 

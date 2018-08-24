@@ -15,12 +15,13 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.PythonTools.Interpreter.Ast;
+using Microsoft.PythonTools.Analysis.Values;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class AstPythonFunctionAssertionsExtensions {
-        public static AstPythonFunctionAssertions Should(this AstPythonFunction pythonFunction)
-            => new AstPythonFunctionAssertions(pythonFunction);
+    internal sealed class InstanceInfoAssertions : AnalysisValueAssertions<InstanceInfo, InstanceInfoAssertions> {
+        public InstanceInfoAssertions(AnalysisValueTestInfo<InstanceInfo> subject) : base(subject) {}
+
+        protected override string Identifier => nameof(InstanceInfo);
     }
 }

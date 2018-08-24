@@ -25,7 +25,7 @@ using Microsoft.PythonTools.Analysis.Values;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal sealed class BoundBuiltinMethodInfoAssertions : AnalysisValueAssertions<BoundBuiltinMethodInfo, BoundBuiltinMethodInfoAssertions> {
-        public BoundBuiltinMethodInfoAssertions(BoundBuiltinMethodInfo subject, InterpreterScope ownerScope) : base(subject, ownerScope) {}
+        public BoundBuiltinMethodInfoAssertions(AnalysisValueTestInfo<BoundBuiltinMethodInfo> subject) : base(subject) {}
 
         protected override string Identifier => nameof(BoundBuiltinMethodInfo);
 

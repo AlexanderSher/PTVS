@@ -20,9 +20,6 @@ using System.Diagnostics.CodeAnalysis;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal static class ParameterResultAssertionsExtensions {
-        public static ParameterResultAssertions Should(this ParameterResult overloadResult)
-            => new ParameterResultAssertions(overloadResult);
-
         public static AndWhichConstraint<TAssertions, ParameterResult> WithName<TAssertions>(this AndWhichConstraint<TAssertions, ParameterResult> constraint, string name, string because = "", params object[] reasonArgs) {
             constraint.Which.Should().HaveName(name, because, reasonArgs);
             return constraint;

@@ -29,16 +29,16 @@ using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal sealed class VariableDefTestInfo {
         private readonly VariableDef _variableDef;
-        private readonly string _name;
         private readonly InterpreterScope _scope;
+        public string Name { get; }
 
         public VariableDefTestInfo(VariableDef variableDef, string name, InterpreterScope scope) {
             _variableDef = variableDef;
-            _name = name;
+            Name = name;
             _scope = scope;
         }
 
-        public VariableDefAssertions Should() => new VariableDefAssertions(_variableDef, _name, _scope);
+        public VariableDefAssertions Should() => new VariableDefAssertions(_variableDef, Name, _scope);
 
         public static implicit operator VariableDef(VariableDefTestInfo ti) => ti._variableDef;
     }
@@ -47,14 +47,12 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         private readonly string _moduleName;
         private readonly string _name;
         private readonly InterpreterScope _scope;
-        private readonly PythonLanguageVersion _languageVersion;
 
         public VariableDefAssertions(VariableDef variableDef, string name, InterpreterScope scope) {
             Subject = variableDef;
             _name = name;
             _scope = scope;
             _moduleName = scope.Name;
-            _languageVersion = ((ModuleScope)scope.GlobalScope).Module.ProjectEntry.ProjectState.LanguageVersion;
         }
 
         protected override string Identifier => nameof(VariableDef);
@@ -66,8 +64,23 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             => HaveTypes(typeIds, string.Empty);
 
         public AndConstraint<VariableDefAssertions> HaveTypes(IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
-            var languageVersionIs3X = _languageVersion.Is3x();
-            AssertTypeIds(Flatten(Subject.Types).Select(av => av.PythonType?.TypeId ?? av.TypeId), typeIds, $"{_moduleName}.{_name}", languageVersionIs3X, because, reasonArgs);
+            var languageVersionIs3X = Is3X(_scope);
+            AssertTypeIds(Subject.Types, typeIds, $"{_moduleName}.{_name}", languageVersionIs3X, because, reasonArgs);
+
+            return new AndConstraint<VariableDefAssertions>(this);
+        }
+
+        public AndConstraint<VariableDefAssertions> HaveResolvedType(BuiltinTypeId typeId, string because = "", params object[] reasonArgs)
+            => HaveResolvedTypes(new[]{ typeId }, because, reasonArgs);
+
+        public AndConstraint<VariableDefAssertions> HaveResolvedTypes(params BuiltinTypeId[] typeIds)
+            => HaveTypes(typeIds, string.Empty);
+
+        public AndConstraint<VariableDefAssertions> HaveResolvedTypes(IEnumerable<BuiltinTypeId> typeIds, string because = "", params object[] reasonArgs) {
+            var resolved = Subject.TypesNoCopy.Resolve(new AnalysisUnit(null, null, _scope, true));
+
+            var languageVersionIs3X = Is3X(_scope);
+            AssertTypeIds(resolved, typeIds, $"{_moduleName}.{_name}", languageVersionIs3X, because, reasonArgs);
 
             return new AndConstraint<VariableDefAssertions>(this);
         }
@@ -80,7 +93,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public AndConstraint<VariableDefAssertions> HaveClassNames(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             var expectedClassNames = classNames.ToArray();
-            var missingClassNames = expectedClassNames.Except(Flatten(Subject.Types).Select(av => av.ShortDescription)).ToArray();
+            var missingClassNames = expectedClassNames.Except(FlattenAnalysisValues(Subject.Types).Select(av => av.ShortDescription)).ToArray();
 
             if (missingClassNames.Any()) {
                 var message = expectedClassNames.Length > 1
@@ -106,11 +119,11 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         }
 
         public AndConstraint<VariableDefAssertions> HaveDescription(string description, string because = "", params object[] reasonArgs) {
-            var values = Flatten(Subject.Types).ToArray();
+            var values = FlattenAnalysisValues(Subject.Types).ToArray();
             var value = AssertSingle(because, reasonArgs, values);
 
-            var actualDescription = values[0].Description;
-            var actualShortDescription = values[0].ShortDescription;
+            var actualDescription = value.Description;
+            var actualShortDescription = value.ShortDescription;
             Execute.Assertion.ForCondition(description == actualDescription || description != actualShortDescription)
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected description of {_moduleName}.{_name} to have description {description}{{reason}}, but found {actualDescription} or {actualShortDescription}.");
@@ -120,7 +133,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public AndWhichConstraint<VariableDefAssertions, AnalysisValueTestInfo<TValue>> HaveValue<TValue>(string because = "", params object[] reasonArgs)
             where TValue : AnalysisValue {
-            var values = Flatten(Subject.Types).ToArray();
+            var values = FlattenAnalysisValues(Subject.Types).ToArray();
             var value = AssertSingle(because, reasonArgs, values);
 
             var typedValue = value as TValue;
@@ -128,7 +141,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {_moduleName}.{_name} to have value of type {typeof(TValue)}{{reason}}, but its value has type {value.GetType()}.");
 
-            return new AndWhichConstraint<VariableDefAssertions, AnalysisValueTestInfo<TValue>>(this, new AnalysisValueTestInfo<TValue>(typedValue, _scope));
+            var testInfo = new AnalysisValueTestInfo<TValue>(typedValue, GetScopeDescription(), _scope);
+            return new AndWhichConstraint<VariableDefAssertions, AnalysisValueTestInfo<TValue>>(this, testInfo);
         }
         
         private AnalysisValue AssertSingle(string because, object[] reasonArgs, AnalysisValue[] values) {
@@ -141,15 +155,12 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return values[0];
         }
 
-        private static IEnumerable<AnalysisValue> Flatten(IEnumerable<AnalysisValue> analysisValues) {
-            foreach (var analysisValue in analysisValues) {
-                if (analysisValue is MultipleMemberInfo mmi) {
-                    foreach (var value in Flatten(mmi.Members)) {
-                        yield return value;
-                    }
-                } else {
-                    yield return analysisValue;
-                }
+        private string GetScopeDescription() {
+            switch (_scope) {
+                case FunctionScope functionScope:
+                    return $"of variable '{_name}' in function {GetQuotedName(functionScope.Function)}";
+                default:
+                    return $"of variable '{_moduleName}.{_name}'";
             }
         }
     }
