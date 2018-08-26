@@ -88,6 +88,8 @@ namespace Microsoft.PythonTools.Interpreter {
             return _builtins?.GetAnyMember(id.GetTypeName(Factory.Configuration.Version)) as IPythonType;
         }
 
+        public Task<IList<string>> GetModuleNamesAsync(CancellationToken token) => Task.FromResult(GetModuleNames());
+
         public IList<string> GetModuleNames() {
             if (_builtins != null) {
                 return new[] { _builtins.Name };

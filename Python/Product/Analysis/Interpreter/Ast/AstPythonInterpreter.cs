@@ -172,9 +172,13 @@ namespace Microsoft.PythonTools.Interpreter.Ast {
             return null;
         }
 
-        public IList<string> GetModuleNames() {
-            var ussp = GetUserSearchPathPackagesAsync(CancellationToken.None).WaitAndUnwrapExceptions();
-            var ssp = _factory.GetImportableModulesAsync(CancellationToken.None).WaitAndUnwrapExceptions();
+
+        public IList<string> GetModuleNames() 
+            => GetModuleNamesAsync(new CancellationTokenSource(10_000).Token).WaitAndUnwrapExceptions();
+
+        public async Task<IList<string>> GetModuleNamesAsync(CancellationToken token) {
+            var ussp = await GetUserSearchPathPackagesAsync(token);
+            var ssp = await _factory.GetImportableModulesAsync(token);
             var bmn = _builtinModuleNames;
             if (bmn == null && _builtinModule != null) {
                 var builtinModules = (_builtinModule as IBuiltinPythonModule)?.GetAnyMember("__builtin_module_names__");

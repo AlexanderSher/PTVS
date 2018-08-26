@@ -49,8 +49,8 @@ namespace Microsoft.PythonTools.Interpreter {
         IPythonType GetBuiltinType(BuiltinTypeId id);
 
         /// <summary>
-        /// Returns a list of module names that can be imported by this
-        /// interpreter.
+        /// Synchronous variant of <see ref="IPythonInterpreter2.GetModuleNamesAsync">.
+        /// Waits for the async import completion using timeouts.
         /// </summary>
         IList<string> GetModuleNames();
 
@@ -81,5 +81,11 @@ namespace Microsoft.PythonTools.Interpreter {
         /// the module does not exist. The import is performed asynchronously.
         /// </summary>
         Task<IPythonModule> ImportModuleAsync(string name, CancellationToken token);
+
+        /// <summary>
+        /// Returns a list of module names that can be imported by this
+        /// interpreter.
+        /// </summary>
+        Task<IList<string>> GetModuleNamesAsync(CancellationToken token);
     }
 }

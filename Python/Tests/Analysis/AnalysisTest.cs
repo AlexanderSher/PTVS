@@ -90,7 +90,7 @@ namespace AnalysisTests {
                 await server.SendDidOpenTextDocument(uri, code);
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should()
                         .HaveParameter("fob").OfType(BuiltinTypeId.Tuple)
                     .And.HaveParameter("oar").OfType(BuiltinTypeId.Dict);
@@ -103,7 +103,7 @@ f(42)
                 server.SendDidChangeTextDocument(uri, code);
                 analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
                     .Which.Should().HaveIndexType(0, BuiltinTypeId.Int);
 
@@ -114,7 +114,7 @@ f(42, 'abc')
 ";
                 server.SendDidChangeTextDocument(uri, code);
                 analysis = await server.GetAnalysisAsync(uri);
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
                     .Which.Should().HaveIndexTypes(0, BuiltinTypeId.Int, BuiltinTypeId.Str);
 
@@ -126,7 +126,7 @@ f('abc', 42)
 ";
                 server.SendDidChangeTextDocument(uri, code);
                 analysis = await server.GetAnalysisAsync(uri);
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
                     .Which.Should().HaveIndexTypes(0, BuiltinTypeId.Int, BuiltinTypeId.Str);
 
@@ -139,7 +139,7 @@ f(x=42)
                 server.SendDidChangeTextDocument(uri, code);
                 analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should()
                         .HaveVariable("y").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveParameter("oar").OfType(BuiltinTypeId.Dict).WithValue<DictionaryInfo>()
@@ -153,7 +153,7 @@ f(x=42, y = 'abc')
 ";
                 server.SendDidChangeTextDocument(uri, code);
                 analysis = await server.GetAnalysisAsync(uri);
-                analysis.Should().HaveFunctionInfoVariable("f")
+                analysis.Should().HaveFunction("f")
                     .Which.Should()
                         .HaveVariable("z").OfResolvedTypes(BuiltinTypeId.Int, BuiltinTypeId.Str)
                     .And.HaveParameter("oar").OfType(BuiltinTypeId.Dict).WithValue<DictionaryInfo>()
@@ -194,11 +194,11 @@ class B:
     x = 3.1415
     x = x
 ";
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
 
-                analysis.Should().HaveClassInfoVariable("A")
+                analysis.Should().HaveClass("A")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
 
                 // Arguably this should only be float, but since we don't support
@@ -210,7 +210,7 @@ class B:
                 //     if False:
                 //         x = 3.1415
                 //     x = x
-                analysis.Should().HaveClassInfoVariable("B")
+                analysis.Should().HaveClass("B")
                     .Which.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Float);
             }
         }
@@ -226,11 +226,11 @@ def f():
 
 y = f()
 ";
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfTypes(BuiltinTypeId.Int)
-                    .And.HaveFunctionInfoVariable("f")
+                    .And.HaveFunction("f")
                     .Which.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveReturnValue().OfTypes(BuiltinTypeId.Int);
             }
@@ -251,7 +251,7 @@ y = f()
 slice = array.array('b', b'abcdef')[2:3]
 add = array.array('b', b'abcdef') + array.array('b', b'fob')
 ";
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("slice").OfType("array")
                     .And.HaveVariable("add").OfType("array");
@@ -268,7 +268,7 @@ y = f(1, 'abc')
 z = f(None, 'abc', 1)
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str)
                     .And.HaveVariable("z").OfTypes(BuiltinTypeId.Str, BuiltinTypeId.Int);
@@ -286,7 +286,7 @@ z = f(a='b', b='abc')
 w = f(a='p', p=1, q='abc')
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Float)
                     .And.HaveVariable("z").OfTypes(BuiltinTypeId.Str)
@@ -306,8 +306,8 @@ def f(x):
 
 
             // If we complete processing then we have succeeded
-            using (var server = await CreateServerAsync(PythonVersions.Python32 ?? PythonVersions.Python32_x64)) {
-                await server.AddModuleAndGetAnalysisAsync(code);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python32X)) {
+                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
             }
         }
 
@@ -362,7 +362,7 @@ y = f('abc')";
 x = f(42)";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
             }
         }
@@ -377,7 +377,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -395,7 +395,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -413,7 +413,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -433,7 +433,7 @@ b = list_fact(str)[0]
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Str);
             }
@@ -454,7 +454,7 @@ x = f(42, 'oar')
 y = f('fob', 'oar')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -518,7 +518,7 @@ i = x['abc']
 s = x['oar']
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("i").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("s").OfType(BuiltinTypeId.Str);
             }
@@ -539,7 +539,7 @@ x2 = f(x)
 y2 = f(y)
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.List)
                     .And.HaveVariable("x2").OfType(BuiltinTypeId.List)
@@ -619,16 +619,15 @@ a.original()
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x1").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveVariable("y1").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveVariable("_1").OfResolvedTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
-                    .And.HaveClassInfoVariable("A")
-                    .Which.Should().HaveFunctionInfoVariable("original")
-                    .Which.Should().HaveVariable("item").OfTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
+                    .And.HaveClass("A").WithFunction("original")
+                    .Which.Should().HaveVariable("item").OfResolvedTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
                     .And.HaveVariable("x").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfResolvedType(BuiltinTypeId.Int)
-                    .And.HaveVariable("_").OfTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
+                    .And.HaveVariable("_").OfResolvedTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
                     .And.HaveParameter("self").WithValue<InstanceInfo>()
                     .Which.Should().HaveMemberOfTypes("top", BuiltinTypeId.Tuple, BuiltinTypeId.NoneType);
             }
@@ -648,7 +647,7 @@ y = x[0]
             // Completing analysis is the main test, but we'll also ensure that
             // the right types are in the list.
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("y").OfTypes(BuiltinTypeId.List, BuiltinTypeId.Int, BuiltinTypeId.Float, BuiltinTypeId.Str);
             }
         }
@@ -666,9 +665,9 @@ y = x[0]
 x = a()
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(code);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
 
-                analysis.Should().HaveFunctionInfoVariable("a")
+                analysis.Should().HaveFunction("a")
                     .Which.Should().HaveReturnValue().OfType(BuiltinTypeId.Tuple);
             }
         }
@@ -694,7 +693,7 @@ from nt import *
         [TestMethod, Priority(0)]
         public async Task ImportTrailingComma() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
-                var analysis = await server.AddModuleAndGetAnalysisAsync(@"
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 import nt,
             ");
                 analysis.Should().HavePythonModuleVariable("nt")
@@ -809,11 +808,11 @@ z = mod1.f(42)
                 var analysis1 = await server.GetAnalysisAsync(uri1);
                 var analysis2 = await server.GetAnalysisAsync(uri2);
 
-                analysis1.Should().HaveFunctionInfoVariable("f")
+                analysis1.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("abc").OfType(BuiltinTypeId.Int);
                 analysis2.Should().HaveVariable("z").OfType(BuiltinTypeId.Int);
 
-            //change caller in text2
+                //change caller in text2
                 text2 = @"
 import mod1
 z = mod1.f('abc')
@@ -822,7 +821,7 @@ z = mod1.f('abc')
                 server.SendDidChangeTextDocument(uri2, text2);
                 analysis2 = await server.GetAnalysisAsync(uri2);
 
-                analysis1.Should().HaveFunctionInfoVariable("f")
+                analysis1.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("abc").OfType(BuiltinTypeId.Str);
                 analysis2.Should().HaveVariable("z").OfType(BuiltinTypeId.Str);
             }
@@ -882,10 +881,13 @@ mod2.x = 'abc'
             }
         }
         */
-/*
+
         [TestMethod, Priority(0)]
-        public void PrivateMembers() {
-            string code = @"
+        public async Task PrivateMembers() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var uri = TestData.GetTempPathUri("test-module.py");
+
+                string code = @"
 class C:
     def __init__(self):
         self._C__X = 'abc'	# Completions here should only ever show __X
@@ -893,14 +895,19 @@ class C:
 
 class D(C):
     def __init__(self):        
-        print(self)		# self. here shouldn't have __X or _C__X (could be controlled by Text Editor->Python->general->Hide advanced members to show _C__X)
+        print(self.__X)		# self. here shouldn't have __X or _C__X (could be controlled by Text Editor->Python->general->Hide advanced members to show _C__X)
 ";
-            var entry = ProcessTextV2(code);
 
-            entry.AssertHasAttrExact("self", code.IndexOf("_C__X"), "__X", "__init__", "__doc__", "__class__");
-            entry.AssertHasAttrExact("self", code.IndexOf("print"), "_C__X", "__init__", "__doc__", "__class__");
+                await server.SendDidOpenTextDocument(uri, code);
+                await server.GetAnalysisAsync(uri);
 
-            code = @"
+                var completions = await server.SendCompletion(uri, 4, 13);
+                completions.Should().OnlyHaveLabels("__X", "__init__", "__doc__", "__class__");
+
+                completions = await server.SendCompletion(uri, 8, 19);
+                completions.Should().OnlyHaveLabels("_C__X", "__init__", "__doc__", "__class__");
+
+                    code = @"
 class C(object):
     def __init__(self):
         self.f(_C__A = 42)		# sig help should be _C__A
@@ -911,15 +918,21 @@ class C(object):
 
 class D(C):
     def __init__(self):
-        marker
         self.f(_C__A=42)		# sig help should be _C__A
 ";
-            entry = ProcessTextV2(code);
 
-            entry.AssertHasParameters("self.f", code.IndexOf("self.f"), "_C__A");
-            entry.AssertHasParameters("self.f", code.IndexOf("marker"), "_C__A");
+                server.SendDidChangeTextDocument(uri, code);
+                await server.GetAnalysisAsync(uri);
 
-            code = @"
+                var signatures = await server.SendSignatureHelp(uri, 3, 15);
+                signatures.Should().HaveSingleSignature()
+                    .Which.Should().OnlyHaveParameterLabels("_C__A");
+
+                signatures = await server.SendSignatureHelp(uri, 11, 15);
+                signatures.Should().HaveSingleSignature()
+                    .Which.Should().OnlyHaveParameterLabels("_C__A");
+
+                code = @"
 class C(object):
     def __init__(self):
         self.__f(_C__A = 42)		# member should be __f
@@ -930,16 +943,20 @@ class C(object):
 
 class D(C):
     def __init__(self):
-        marker
         self._C__f(_C__A=42)		# member should be _C__f
 
 ";
+                
+                server.SendDidChangeTextDocument(uri, code);
+                await server.GetAnalysisAsync(uri);
 
-            entry = ProcessTextV2(code);
-            entry.AssertHasAttr("self", code.IndexOf("self.__f"), "__f", "__init__");
-            entry.AssertHasAttr("self", code.IndexOf("marker"), "_C__f", "__init__");
+                completions = await server.SendCompletion(uri, 3, 13);
+                completions.Should().HaveLabels("__f", "__init__");
 
-            code = @"
+                completions = await server.SendCompletion(uri, 11, 13);
+                completions.Should().HaveLabels("_C__f", "__init__");
+
+                code = @"
 class C(object):
     __FOB = 42
 
@@ -949,14 +966,20 @@ class C(object):
 
 xyz = C._C__FOB  # Advanced members completion should work here
 ";
-            entry = ProcessTextV2(code);
-            entry.AssertHasAttr("C", code.IndexOf("abc = "), "__FOB", "f");
-            entry.AssertHasAttr("C", code.IndexOf("xyz = "), "_C__FOB", "f");
 
+                server.SendDidChangeTextDocument(uri, code);
+                await server.GetAnalysisAsync(uri);
+
+                completions = await server.SendCompletion(uri, 5, 16);
+                completions.Should().HaveLabels("__FOB", "f");
+
+                completions = await server.SendCompletion(uri, 8, 8);
+                completions.Should().HaveLabels("_C__FOB", "f");
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void BaseInstanceVariable() {
+        public async Task BaseInstanceVariable() {
             var code = @"
 class C:
     def __init__(self):
@@ -968,15 +991,23 @@ class D(C):
         self.fob = self.abc
 ";
 
-            var entry = ProcessTextV2(code);
-            entry.AssertHasAttrExact("self.fob", code.IndexOf("self.fob"), entry.IntMembers);
-            entry.AssertHasAttr("self", code.IndexOf("self.fob"), "abc");
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+
+                analysis.Should().HaveClass("D").WithFunction("__init__")
+                    .Which.Should().HaveParameter("self").WithValue<InstanceInfo>()
+                    .Which.Should().HaveMemberOfType("fob", BuiltinTypeId.Int)
+                    .And.HaveMemberOfType("abc", BuiltinTypeId.Int);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void Mro() {
-            // Successful: MRO is A B C D E F object
-            var code = @"
+        public async Task Mro() {
+            var uri = TestData.GetTempPathUri("test-module.py");
+            string code;
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                // Successful: MRO is A B C D E F object
+                code = @"
 O = object
 class F(O): pass
 class E(O): pass
@@ -988,14 +1019,14 @@ class A(B,C): pass
 a = A()
 ";
 
-            var entry = ProcessTextV2(code);
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            var clsA = entry.GetValue<ClassInfo>("A");
-            var mroA = clsA.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroA, "A", "B", "C", "D", "E", "F", "type object");
+                analysis.Should().HaveClassInfo("A")
+                    .WithMethodResolutionOrder("A", "B", "C", "D", "E", "F", "type object");
 
-            // Unsuccessful: cannot order X and Y
-            code = @"
+                // Unsuccessful: cannot order X and Y
+                code = @"
 O = object
 class X(O): pass
 class Y(O): pass
@@ -1006,39 +1037,43 @@ class C(A, B): pass
 c = C()
 ";
 
-            entry = ProcessTextV2(code);
+                server.SendDidChangeTextDocument(uri, code);
+                analysis = await server.GetAnalysisAsync(uri);
 
-            var clsC = entry.GetValue<ClassInfo>("C");
-            Assert.IsFalse(clsC._mro.IsValid);
+                analysis.Should().HaveClassInfo("C")
+                    .Which.Should().HaveInvalidMethodResolutionOrder();
 
-            // Unsuccessful: cannot order F and E
-            code = @"
+                // Unsuccessful: cannot order F and E
+                code = @"
 class F(object): remember2buy='spam'
 class E(F): remember2buy='eggs'
 class G(F,E): pass
 G.remember2buy
 ";
 
-            entry = ProcessTextV2(code);
-            var clsG = entry.GetValue<ClassInfo>("G");
-            Assert.IsFalse(clsG._mro.IsValid);
+                server.SendDidChangeTextDocument(uri, code);
+                analysis = await server.GetAnalysisAsync(uri);
+
+                analysis.Should().HaveClassInfo("G")
+                    .Which.Should().HaveInvalidMethodResolutionOrder();
 
 
-            // Successful: exchanging bases of G fixes the ordering issue
-            code = @"
+                // Successful: exchanging bases of G fixes the ordering issue
+                code = @"
 class F(object): remember2buy='spam'
 class E(F): remember2buy='eggs'
 class G(E,F): pass
 G.remember2buy
 ";
 
-            entry = ProcessTextV2(code);
-            clsG = entry.GetValue<ClassInfo>("G");
-            var mroG = clsG.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroG, "G", "E", "F", "type object");
+                server.SendDidChangeTextDocument(uri, code);
+                analysis = await server.GetAnalysisAsync(uri);
 
-            // Successful: MRO is Z K1 K2 K3 D A B C E object
-            code = @"
+                analysis.Should().HaveClassInfo("G")
+                    .WithMethodResolutionOrder("G", "E", "F", "type object");
+
+                // Successful: MRO is Z K1 K2 K3 D A B C E object
+                code = @"
 class A(object): pass
 class B(object): pass
 class C(object): pass
@@ -1051,50 +1086,41 @@ class Z(K1,K2,K3): pass
 z = Z()
 ";
 
-            entry = ProcessTextV2(code);
-            var clsZ = entry.GetValue<ClassInfo>("Z");
-            Assert.IsNotNull(clsZ);
-            var mroZ = clsZ.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroZ, "Z", "K1", "K2", "K3", "D", "A", "B", "C", "E", "type object");
+                server.SendDidChangeTextDocument(uri, code);
+                analysis = await server.GetAnalysisAsync(uri);
 
-            // Successful: MRO is Z K1 K2 K3 D A B C E object
-            code = @"
+                analysis.Should().HaveClassInfo("Z")
+                    .WithMethodResolutionOrder("Z", "K1", "K2", "K3", "D", "A", "B", "C", "E", "type object");
+
+                // Successful: MRO is Z K1 K2 K3 D A B C E object
+                code = @"
 class A(int): pass
 class B(float): pass
 class C(str): pass
 z = None
 ";
 
-            entry = ProcessTextV2(code);
-            clsA = entry.GetValue<ClassInfo>("A");
-            mroA = clsA.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroA, "A", "type int", "type object");
+                server.SendDidChangeTextDocument(uri, code);
+                analysis = await server.GetAnalysisAsync(uri);
 
-            var clsB = entry.GetValue<ClassInfo>("B");
-            var mroB = clsB.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroB, "B", "type float", "type object");
+                analysis.Should().HaveClassInfo("A").WithMethodResolutionOrder("A", "type int", "type object")
+                    .And.HaveClassInfo("B").WithMethodResolutionOrder("B", "type float", "type object")
+                    .And.HaveClassInfo("C").WithMethodResolutionOrder("C", "type str", "type basestring", "type object");
+            }
 
-            clsC = entry.GetValue<ClassInfo>("C");
-            var mroC = clsC.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroC, "C", "type str", "type basestring", "type object");
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
+                await server.SendDidOpenTextDocument(uri, code);
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            entry = ProcessTextV3(code);
-            clsA = entry.GetValue<ClassInfo>("A");
-            mroA = clsA.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroA, "A", "type int", "type object");
-
-            clsB = entry.GetValue<ClassInfo>("B");
-            mroB = clsB.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroB, "B", "type float", "type object");
-
-            clsC = entry.GetValue<ClassInfo>("C");
-            mroC = clsC.Mro.SelectMany(ns => ns.Select(n => n.ShortDescription)).ToList();
-            AssertUtil.ContainsExactly(mroC, "C", "type str", "type object");
+                analysis.Should().HaveClassInfo("A").WithMethodResolutionOrder("A", "type int", "type object")
+                    .And.HaveClassInfo("B").WithMethodResolutionOrder("B", "type float", "type object")
+                    .And.HaveClassInfo("C").WithMethodResolutionOrder("C", "type str", "type object");
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void ImportStarMro() {
-            PermutedTest(
+        public async Task ImportStarMro() {
+            await PermutedTestAsync(
                 "mod",
                 new[] {
                     @"
@@ -1107,16 +1133,18 @@ class Test_test1(object):
 class Test_test2(Test_test1):
     def test_newtest(self):pass"
                 },
-                entry => {
-                    var mro = entry.GetValue<ClassInfo>(entry.Modules["mod2"], "Test_test2").Mro.ToArray();
-                    AssertUtil.AreEqual(mro.Select(m => m.First().Name), "Test_test2", "Test_test1", "object");
+                analysis => {
+                    analysis[1].Should().HaveClassInfo("Test_test2")
+                        .WithMethodResolutionOrder("Test_test2", "Test_test1", "type object");
                 }
             );
         }
 
         [TestMethod, Priority(0)]
-        public void Iterator() {
-            var entry = ProcessText(@"
+        public async Task Iterator_Python27() {
+            var uri = TestData.GetTempPathUri("test-module.py");
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python27X)) {
+                await server.SendDidOpenTextDocument(uri, @"
 A = [1, 2, 3]
 B = 'abc'
 C = [1.0, 'a', 3]
@@ -1124,14 +1152,15 @@ C = [1.0, 'a', 3]
 iA = iter(A)
 iB = iter(B)
 iC = iter(C)
-", PythonLanguageVersion.V27);
+");
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            entry.AssertIsInstance("iA", BuiltinTypeId.ListIterator);
-            entry.AssertIsInstance("B", BuiltinTypeId.Str);
-            entry.AssertIsInstance("iB", BuiltinTypeId.StrIterator);
-            entry.AssertIsInstance("iC", BuiltinTypeId.ListIterator);
+                analysis.Should().HaveVariable("iA").OfType(BuiltinTypeId.ListIterator)
+                    .And.HaveVariable("B").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("iB").OfType(BuiltinTypeId.StrIterator)
+                    .And.HaveVariable("iC").OfType(BuiltinTypeId.ListIterator);
 
-            entry = ProcessText(@"
+                server.SendDidChangeTextDocument(uri, @"
 A = [1, 2, 3]
 B = 'abc'
 C = [1.0, 'a', 3]
@@ -1139,15 +1168,15 @@ C = [1.0, 'a', 3]
 iA = A.__iter__()
 iB = B.__iter__()
 iC = C.__iter__()
-", PythonLanguageVersion.V27);
+");
+                analysis = await server.GetAnalysisAsync(uri);
 
-            entry.AssertIsInstance("iA", BuiltinTypeId.ListIterator);
-            entry.AssertIsInstance("B", BuiltinTypeId.Str);
-            entry.AssertIsInstance("iB", BuiltinTypeId.StrIterator);
-            entry.AssertIsInstance("iC", BuiltinTypeId.ListIterator);
+                analysis.Should().HaveVariable("iA").OfType(BuiltinTypeId.ListIterator)
+                    .And.HaveVariable("B").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("iB").OfType(BuiltinTypeId.StrIterator)
+                    .And.HaveVariable("iC").OfType(BuiltinTypeId.ListIterator);
 
-
-            entry = ProcessText(@"
+                server.SendDidChangeTextDocument(uri, @"
 A = [1, 2, 3]
 B = 'abc'
 C = [1.0, 'a', 3]
@@ -1157,14 +1186,35 @@ a = iA.next()
 b = next(iB)
 _next = next
 c = _next(iC)
-", PythonLanguageVersion.V27);
+");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Int);
-            entry.AssertIsInstance("b", BuiltinTypeId.Str);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int, BuiltinTypeId.Str, BuiltinTypeId.Float);
+                analysis = await server.GetAnalysisAsync(uri);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("c").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Str, BuiltinTypeId.Float);
 
-            if (SupportsPython3) {
-                entry = ProcessText(@"
+                server.SendDidChangeTextDocument(uri, @"
+iA = iter(lambda: 1, 2)
+iB = iter(lambda: 'abc', None)
+iC = iter(lambda: 1, 'abc')
+
+a = next(iA)
+b = next(iB)
+c = next(iC)
+");
+
+                analysis = await server.GetAnalysisAsync(uri);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int);
+            }
+        }
+
+        [TestMethod, Priority(0)]
+        public async Task Iterator_Python3X() {
+            var uri = TestData.GetTempPathUri("test-module.py");
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
+                await server.SendDidOpenTextDocument(uri, @"
 A = [1, 2, 3]
 B = 'abc'
 C = [1.0, 'a', 3]
@@ -1174,14 +1224,15 @@ a = iA.__next__()
 b = next(iB)
 _next = next
 c = _next(iC)
-", PythonLanguageVersion.V30);
+");
 
-                entry.AssertIsInstance("a", BuiltinTypeId.Int);
-                entry.AssertIsInstance("b", BuiltinTypeId.Unicode);
-                entry.AssertIsInstance("c", BuiltinTypeId.Int, BuiltinTypeId.Unicode, BuiltinTypeId.Float);
-            }
+                var analysis = await server.GetAnalysisAsync(uri);
 
-            entry = ProcessText(@"
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Unicode)
+                    .And.HaveVariable("c").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Unicode, BuiltinTypeId.Float);
+
+                server.SendDidChangeTextDocument(uri, @"
 iA = iter(lambda: 1, 2)
 iB = iter(lambda: 'abc', None)
 iC = iter(lambda: 1, 'abc')
@@ -1189,32 +1240,19 @@ iC = iter(lambda: 1, 'abc')
 a = next(iA)
 b = next(iB)
 c = next(iC)
-", PythonLanguageVersion.V27);
+");
+                analysis = await server.GetAnalysisAsync(uri);
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Int);
-            entry.AssertIsInstance("b", BuiltinTypeId.Str);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-
-            if (SupportsPython3) {
-                entry = ProcessText(@"
-iA = iter(lambda: 1, 2)
-iB = iter(lambda: 'abc', None)
-iC = iter(lambda: 1, 'abc')
-
-a = next(iA)
-b = next(iB)
-c = next(iC)
-", PythonLanguageVersion.V30);
-
-                entry.AssertIsInstance("a", BuiltinTypeId.Int);
-                entry.AssertIsInstance("b", BuiltinTypeId.Unicode);
-                entry.AssertIsInstance("c", BuiltinTypeId.Int);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Unicode)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int);
             }
         }
 
         [TestMethod, Priority(0)]
-        public void Generator2x() {
-            var entry = ProcessText(@"
+        public async Task Generator2X() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     yield 2
@@ -1226,14 +1264,14 @@ b = a.next()
 for c in f():
     print c
 d = a.__next__()
-            ", PythonLanguageVersion.V27);
+            ");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            AssertUtil.ContainsExactly(entry.GetTypeIds("d", 1));
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").WithoutTypes();
 
-            entry = ProcessText(@"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield x
 
@@ -1245,16 +1283,16 @@ b2 = a2.next()
 for c in f():
     print c
 d = a1.__next__()
-            ", PythonLanguageVersion.V27);
+            ");
 
-            entry.AssertIsInstance("a1", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b1", BuiltinTypeId.Int);
-            entry.AssertIsInstance("a2", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b2", BuiltinTypeId.Str);
-            AssertUtil.ContainsExactly(entry.GetTypeIds("c", 1));
-            AssertUtil.ContainsExactly(entry.GetTypeIds("d", 1));
+                analysis.Should().HaveVariable("a1").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b1").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("a2").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b2").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("c").WithoutTypes()
+                    .And.HaveVariable("d").WithoutTypes();
 
-            var text = @"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     x = yield 2
@@ -1262,18 +1300,18 @@ def f():
 a = f()
 b = a.next()
 c = a.send('abc')
-d = a.__next__()";
-            entry = ProcessText(text, PythonLanguageVersion.V27);
-
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            AssertUtil.ContainsExactly(entry.GetTypeIds("d", 1));
+d = a.__next__()");
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").WithoutTypes();
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void Generator3x() {
-            var entry = ProcessTextV3(@"
+        public async Task Generator3X() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     yield 2
@@ -1287,12 +1325,12 @@ for c in f():
 
 d = a.next()");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            entry.AssertIsInstance("d");
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").WithoutTypes();
 
-            entry = ProcessTextV3(@"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield x
 
@@ -1305,14 +1343,14 @@ for c in f(42):
     print(c)
 d = a1.next()");
 
-            entry.AssertIsInstance("a1", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b1", BuiltinTypeId.Int);
-            entry.AssertIsInstance("a2", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b2", BuiltinTypeId.Str);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            entry.AssertIsInstance("d");
+                analysis.Should().HaveVariable("a1").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b1").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("a2").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b2").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").WithoutTypes();
 
-            var text = @"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     x = yield 2
@@ -1320,23 +1358,18 @@ def f():
 a = f()
 b = a.__next__()
 c = a.send('abc')
-d = a.next()";
-            entry = ProcessTextV3(text);
-
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            entry.AssertIsInstance("x", text.IndexOf("x ="), BuiltinTypeId.Str);
-            entry.AssertIsInstance("d");
+d = a.next()");
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("d").WithoutTypes()
+                    .And.HaveFunction("f")
+                    .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void GeneratorDelegation() {
-            if (!SupportsPython3) {
-                // IronPython does not yet support yield from.
-                return;
-            }
-
+        public async Task GeneratorDelegation() {
             //            var text = @"
             //def f():
             //    yield 1
@@ -1362,7 +1395,8 @@ d = a.next()";
             //            entry.AssertIsInstance("c", BuiltinTypeId.Int);
             //            entry.AssertIsInstance("x", text.IndexOf("x ="), BuiltinTypeId.Float);
 
-            var text = @"
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield from x
 
@@ -1371,14 +1405,13 @@ b = a.__next__()
 
 #for c in f([42, 1337]):
 #    print(c)
-";
-            var entry = ProcessTextV3(text);
+");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            //entry.AssertIsInstance("c",  BuiltinTypeId.Int);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int);
+                    //.And.HaveVariable("c").OfType(BuiltinTypeId.Int);
 
-            text = @"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     x = yield 2
@@ -1389,15 +1422,15 @@ def f(fn):
 a = f(g)
 b = a.__next__()
 c = a.send('abc')
-";
-            entry = ProcessTextV3(text);
+");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Int);
-            entry.AssertIsInstance("x", text.IndexOf("x ="), BuiltinTypeId.Str);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
+                    .And.HaveFunction("g")
+                    .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
 
-            text = @"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     return 'abc'
@@ -1407,14 +1440,14 @@ def f(fn):
 
 a = f(g)
 b = a.__next__()
-";
-            entry = ProcessTextV3(text);
+");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("x", text.IndexOf("x ="), BuiltinTypeId.Str);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveFunction("f")
+                    .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
 
-            text = @"
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     return 'abc', 1.5
@@ -1427,18 +1460,19 @@ def f(fn):
 
 a = f(g)
 b = next(a)
-";
-            entry = ProcessTextV3(text);
+");
 
-            entry.AssertIsInstance("a", BuiltinTypeId.Generator);
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("x", text.IndexOf("x, y ="), BuiltinTypeId.Str);
-            entry.AssertIsInstance("y", text.IndexOf("x, y ="), BuiltinTypeId.Float);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveFunction("f")
+                    .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("y").OfType(BuiltinTypeId.Float);
+            }
         }
 
 
         [TestMethod, Priority(0)]
-        public void ListComprehensions() {
+        public async Task ListComprehensions() {
 //            var entry = ProcessText(@"
 //x = [2,3,4]
 //y = [a for a in x]
@@ -1454,30 +1488,40 @@ def f(abc):
 [f(x) for x in [2,3,4]]
 ";
 
-            var entry = ProcessText(text);
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var projectEntry = server.AddModuleWithContent(text);
+                var analysis = await projectEntry.GetAnalysisAsync();
+                var references = analysis.GetVariables("f", SourceLocation.MinValue);
 
-            entry.AssertReferences("f",
-                new VariableLocation(2, 1, VariableType.Value),
-                new VariableLocation(2, 5, VariableType.Definition),
-                new VariableLocation(5, 2, VariableType.Reference));
+                references.Should().HaveCount(3)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(2, 1, 3, 14), VariableType.Value)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(2, 5, 2, 6), VariableType.Definition)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(5, 2, 5, 3), VariableType.Reference);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void LambdaInComprehension() {
+        public async Task LambdaInComprehension() {
             var text = "x = [(lambda a:[a**i for i in range(a+1)])(j) for j in range(5)]";
 
-            var entry = ProcessText(text, PythonLanguageVersion.V33);
-            entry.AssertIsInstance("x", BuiltinTypeId.List);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python27X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
+            }
 
-            entry = ProcessText(text, PythonLanguageVersion.V30);
-            entry.AssertIsInstance("x", BuiltinTypeId.List);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python31X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
+            }
 
-            entry = ProcessText(text, PythonLanguageVersion.V27);
-            entry.AssertIsInstance("x", BuiltinTypeId.List);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python33X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void Comprehensions() {
+        public async Task Comprehensions() {
             var text = @"
 x = 10; g = (i for i in range(x)); x = 5
 x = 10; t = False; g = ((i,j) for i in range(x) if t for j in range(x))
@@ -1488,30 +1532,41 @@ list(x for x in range(10) if x % 2 if x % 3)
 [x for x, in [(4,), (5,), (6,)]]
 list(x for x, in [(7,), (8,), (9,)])
 ";
-            var entry = ProcessText(text, PythonLanguageVersion.V27);
-            Assert.IsNotNull(entry);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python27X)) {
+                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+            }
 
-            entry = ProcessText(text, PythonLanguageVersion.V32);
-            Assert.IsNotNull(entry);
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python32X)) {
+                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void ExecReferences() {
+        public async Task ExecReferences() {
             string text = @"
 a = {}
 b = """"
 exec b in a
 ";
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var projectEntry = server.AddModuleWithContent(text);
+                var analysis = await projectEntry.GetAnalysisAsync();
+                var referencesA = analysis.GetVariables("a", SourceLocation.MinValue);
+                var referencesB = analysis.GetVariables("b", SourceLocation.MinValue);
 
-            var entry = ProcessTextV2(text);
+                referencesA.Should().HaveCount(2)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(2, 1, 2, 2), VariableType.Definition)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(4, 11, 4, 12), VariableType.Reference);
 
-            entry.AssertReferences("a", new VariableLocation(2, 1, VariableType.Definition), new VariableLocation(4, 11, VariableType.Reference));
-            entry.AssertReferences("b", new VariableLocation(3, 1, VariableType.Definition), new VariableLocation(4, 6, VariableType.Reference));
+                referencesB.Should().HaveCount(2)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(3, 1, 3, 2), VariableType.Definition)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(4, 6, 4, 7), VariableType.Reference);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void PrivateMemberReferences() {
-            string text = @"
+        public async Task PrivateMemberReferences() {
+            var text = @"
 class C:
     def __x(self):
         pass
@@ -1523,28 +1578,33 @@ class C:
         self._C__x()
 ";
 
-            var entry = ProcessTextV2(text);
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var projectEntry = server.AddModuleWithContent(text);
+                var analysis = await projectEntry.GetAnalysisAsync();
+                var references = analysis.GetVariables("self.__x", new SourceLocation(7, 9));
 
-            entry.AssertReferences("self.__x", text.IndexOf("self.__"),
-                new VariableLocation(3, 5, VariableType.Value),
-                new VariableLocation(3, 9, VariableType.Definition),
-                new VariableLocation(7, 14, VariableType.Reference),
-                new VariableLocation(10, 14, VariableType.Reference));
+                references.Should().HaveCount(4)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(3, 5, 4, 13), VariableType.Value)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(3, 9, 3, 12), VariableType.Definition)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(7, 14, 7, 17), VariableType.Reference)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(10, 14, 10, 19), VariableType.Reference);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void GeneratorComprehensions() {
-            var text = @"
+        public async Task GeneratorComprehensions() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var text = @"
 x = [2,3,4]
 y = (a for a in x)
 for z in y:
     print z
 ";
 
-            var entry = ProcessTextV2(text);
-            entry.AssertIsInstance("z", BuiltinTypeId.Int);
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveVariable("z").OfResolvedType(BuiltinTypeId.Int);
 
-            text = @"
+                text = @"
 x = [2,3,4]
 y = (a for a in x)
 
@@ -1554,11 +1614,11 @@ def f(iterable):
 
 f(y)
 ";
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveFunction("f")
+                    .Which.Should().HaveVariable("z").OfType(BuiltinTypeId.Int);
 
-            entry = ProcessTextV2(text);
-            entry.AssertIsInstance("z", text.IndexOf("print "), BuiltinTypeId.Int);
-
-            text = @"
+                text = @"
 x = [True, False, None]
 
 def f(iterable):
@@ -1570,44 +1630,50 @@ def f(iterable):
 
 y = f(i for i in x)
 ";
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                analysis.Should().HaveVariable("y").OfTypes(BuiltinTypeId.Bool, BuiltinTypeId.NoneType);
 
-            entry = ProcessTextV2(text);
-            entry.AssertIsInstance("y", BuiltinTypeId.Bool, BuiltinTypeId.NoneType);
-
-
-            text = @"
+                text = @"
 def f(abc):
     print abc
 
 (f(x) for x in [2,3,4])
 ";
+                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                var references = analysis.GetVariables("f", SourceLocation.MinValue);
+                var projectEntry = (IPythonProjectEntry)server.ProjectFiles.All.Single();
 
-            entry = ProcessTextV2(text);
-            entry.AssertIsInstance("abc", text.IndexOf("print"), BuiltinTypeId.Int);
-            entry.AssertReferences("f",
-                new VariableLocation(2, 1, VariableType.Value),
-                new VariableLocation(2, 5, VariableType.Definition),
-                new VariableLocation(5, 2, VariableType.Reference));
+                analysis.Should().HaveFunction("f")
+                    .Which.Should().HaveParameter("abc").OfType(BuiltinTypeId.Int);
+
+                references.Should().HaveCount(3)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(2, 1, 3, 14), VariableType.Value)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(2, 5, 2, 6), VariableType.Definition)
+                    .And.HaveReferenceAt(projectEntry, new SourceSpan(5, 2, 5, 3), VariableType.Reference);
+
+            }
         }
 
-
         [TestMethod, Priority(0)]
-        public void ForSequence() {
-            var entry = ProcessText(@"
+        public async Task ForSequence() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 x = [('abc', 42, True), ('abc', 23, False),]
 for some_str, some_int, some_bool in x:
     print some_str
     print some_int
     print some_bool
 ");
-            entry.AssertIsInstance("some_str", BuiltinTypeId.Str);
-            entry.AssertIsInstance("some_int", BuiltinTypeId.Int);
-            entry.AssertIsInstance("some_bool", BuiltinTypeId.Bool);
+                analysis.Should().HaveVariable("some_str").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("some_int").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("some_bool").OfType(BuiltinTypeId.Bool);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void ForIterator() {
-            var code = @"
+        public async Task ForIterator() {
+            using (var server = await CreateServerAsync(PythonVersions.Required_Python34X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 class X(object):
     def __iter__(self): return self
     def __next__(self): return 123
@@ -1617,15 +1683,15 @@ class Y(object):
 
 for i in Y():
     pass
-";
-            var entry = ProcessText(code, PythonLanguageVersion.V34);
-
-            entry.AssertIsInstance("i", BuiltinTypeId.Int);
+");
+                analysis.Should().HaveVariable("i").OfResolvedType(BuiltinTypeId.Int);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void DynamicAttributes() {
-            var entry = ProcessText(@"
+        public async Task DynamicAttributes() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 class x(object):
     def __getattr__(self, name):
         return 42
@@ -1641,15 +1707,16 @@ class y(object):
         
 c = y().abc
 ");
-
-            entry.AssertIsInstance("a", BuiltinTypeId.Int);
-            entry.AssertIsInstance("b", BuiltinTypeId.Str);
-            entry.AssertIsInstance("c", BuiltinTypeId.Str);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Str);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void GetAttr() {
-            var entry = ProcessText(@"
+        public async Task GetAttr() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 class x(object):
     def __init__(self, value):
         self.value = value
@@ -1659,15 +1726,16 @@ b = getattr(a, 'value')
 c = getattr(a, 'dne', 'fob')
 d = getattr(a, 'value', 'fob')
 ");
-
-            entry.AssertIsInstance("b", BuiltinTypeId.Int);
-            entry.AssertIsInstance("c", BuiltinTypeId.Str);
-            entry.AssertIsInstance("d", BuiltinTypeId.Int, BuiltinTypeId.Str);
+                analysis.Should().HaveVariable("b").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("c").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("d").OfTypes(BuiltinTypeId.Int, BuiltinTypeId.Str);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void SetAttr() {
-            var entry = ProcessText(@"
+        public async Task SetAttr() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 class X(object):
     pass
 x = X()
@@ -1678,14 +1746,15 @@ object.__setattr__(x, 'b', 3.1415)
 a = x.a
 b = x.b
 ");
-
-            entry.AssertIsInstance("a", BuiltinTypeId.Int);
-            entry.AssertIsInstance("b", BuiltinTypeId.Float);
+                analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("b").OfType(BuiltinTypeId.Float);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void NoGetAttrForSlots() {
-            var code = @"class A(object):
+        public async Task NoGetAttrForSlots() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"class A(object):
     def __getattr__(self, key):
         return f
 
@@ -1696,42 +1765,44 @@ def f(x, y):
 a = A()
 a(123, None)
 a.__call__(None, 123)
-";
-            var entry = ProcessTextV2(code);
-
-            // FIXME: https://pytools.codeplex.com/workitem/2898 (for IronPython only)
-            entry.AssertIsInstance("x", code.IndexOf("x #"), BuiltinTypeId.NoneType);
-            entry.AssertIsInstance("y", code.IndexOf("y #"), BuiltinTypeId.Int);
+");
+                analysis.Should().HaveFunction("f")
+                    .Which.Should().HaveParameter("x").OfType(BuiltinTypeId.NoneType)
+                    .And.HaveParameter("y").OfType(BuiltinTypeId.Int);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void VarsSpecialization() {
-            var entry = ProcessText(@"
+        public async Task VarsSpecialization() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 x = vars()
 k = x.keys()[0]
 v = x['a']
 ");
 
-            entry.AssertIsInstance("x", BuiltinTypeId.Dict);
-            entry.AssertIsInstance("k", BuiltinTypeId.Str);
-            entry.AssertIsInstance("v", BuiltinTypeId.Object);
+                analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Dict)
+                    .And.HaveVariable("k").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("v").OfType(BuiltinTypeId.Object);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void DirSpecialization() {
-            var entry = ProcessText(@"
+        public async Task DirSpecialization() {
+            using (var server = await CreateServerAsync()) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 x = dir()
 v = x[0]
 ");
-
-            entry.AssertIsInstance("x", BuiltinTypeId.List);
-            entry.AssertIsInstance("v", BuiltinTypeId.Str);
+                analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List)
+                    .And.HaveVariable("v").OfType(BuiltinTypeId.Str);
+            }
         }
 
         [TestMethod, Priority(0)]
-        public void BuiltinSpecializations() {
-            var entry = CreateAnalyzer(DefaultFactoryV3);
-            entry.AddModule("test-module", @"
+        public async Task BuiltinSpecializations() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
 expect_int = abs(1)
 expect_float = abs(2.3)
 expect_object = abs(object())
@@ -1774,23 +1845,20 @@ expect_float = sum(2.0, 3.0)
 expect_dict = vars()
 expect_object = vars()['']
 ");
-            // The open() specialization uses classes from the io module,
-            // so provide them here.
-            entry.AddModule("io", @"
-class TextIOWrapper(object): pass
-class BufferedIOBase(object): pass
-", "io.py");
-            entry.WaitForAnalysis();
+                analysis.Should().HaveVariable("expect_object").OfType(BuiltinTypeId.Object)
+                    .And.HaveVariable("expect_bool").OfType(BuiltinTypeId.Bool)
+                    .And.HaveVariable("expect_int").OfType(BuiltinTypeId.Int)
+                    .And.HaveVariable("expect_float").OfType(BuiltinTypeId.Float)
+                    .And.HaveVariable("expect_str").OfType(BuiltinTypeId.Str)
+                    .And.HaveVariable("expect_list").OfType(BuiltinTypeId.List)
+                    .And.HaveVariable("expect_dict").OfType(BuiltinTypeId.Dict);
 
-            entry.AssertIsInstance("expect_object", BuiltinTypeId.Object);
-            entry.AssertIsInstance("expect_bool", BuiltinTypeId.Bool);
-            entry.AssertIsInstance("expect_int", BuiltinTypeId.Int);
-            entry.AssertIsInstance("expect_float", BuiltinTypeId.Float);
-            entry.AssertIsInstance("expect_str", BuiltinTypeId.Str);
-            entry.AssertIsInstance("expect_list", BuiltinTypeId.List);
-            entry.AssertIsInstance("expect_dict", BuiltinTypeId.Dict);
-            Assert.AreEqual("TextIOWrapper", entry.GetValue<InstanceInfo>("expect_TextIOWrapper")?.ClassInfo?.Name);
-            Assert.AreEqual("BufferedIOBase", entry.GetValue<InstanceInfo>("expect_BufferedIOBase")?.ClassInfo?.Name);
+
+                analysis.Should().HaveVariable("expect_TextIOWrapper").WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().HaveClassName("TextIOWrapper");
+                analysis.Should().HaveVariable("expect_BufferedIOBase").WithValue<BuiltinInstanceInfo>()
+                    .Which.Should().HaveClassName("BufferedIOBase");
+            }
         }
 
         [TestMethod, Priority(0)]
@@ -1874,7 +1942,7 @@ iinst = inst[1]
                 entry.AssertIsInstance(name, text.IndexOf(name + " = "), BuiltinTypeId.Str);
             }
         }
-
+/*
         [TestMethod, Priority(0)]
         public void ConstantIndex() {
             var entry = ProcessText(@"
@@ -7265,6 +7333,9 @@ e = Employee('Guido')
             }
         }
 
+        private Task PermutedTestAsync(string prefix, string code, Action<ModuleAnalysis> test)
+            => PermutedTestAsync(prefix, new[] {code}, analysis => test(analysis[0]));
+
         /// <summary>
         /// For a given set of module definitions, build analysis info for each unique permutation
         /// of the ordering of the defintions and run the test against each analysis.
@@ -7281,7 +7352,7 @@ e = Employee('Guido')
                         var content = code[p[i]];
                         var filename = name.Replace('.', '\\') + ".py";
 
-                        entries[i] = server.AddModuleWithContent(name, filename, content);
+                        entries[p[i]] = server.AddModuleWithContent(name, filename, content);
                     }
 
                     var analysises = entries

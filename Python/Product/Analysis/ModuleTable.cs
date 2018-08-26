@@ -173,8 +173,10 @@ namespace Microsoft.PythonTools.Analysis {
         /// Modules that are already in the table as builtins are replaced or
         /// removed, but no new modules are added.
         /// </summary>
-        public void ReInit() {
-            var newNames = new HashSet<string>(_interpreter.GetModuleNames(), StringComparer.Ordinal);
+        public async Task ReInitAsync(CancellationToken cancellationToken = default(CancellationToken)) {
+            var newNames = _interpreter is IPythonInterpreter2 interpreter2
+                ? new HashSet<string>(await interpreter2.GetModuleNamesAsync(cancellationToken), StringComparer.Ordinal)
+                : new HashSet<string>(_interpreter.GetModuleNames(), StringComparer.Ordinal);
 
             foreach (var keyValue in _modules) {
                 var name = keyValue.Key;

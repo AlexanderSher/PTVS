@@ -233,8 +233,8 @@ R_A1 = A()
 R_A2 = A().r_A()
 R_A3 = R_A1.r_A()");
                 var analysis = await server.GetAnalysisAsync(uri);
-                analysis.Should().HaveFunctions("r_a", "r_b", "r_str", "r_object")
-                    .And.HaveClasses("A")
+                analysis.Should().HaveFunctionVariables("r_a", "r_b", "r_str", "r_object")
+                    .And.HaveClassVariables("A")
                     .And.HaveVariable("R_str").OfTypes(BuiltinTypeId.Str)
                     .And.HaveVariable("R_object").OfTypes(BuiltinTypeId.Object)
                     .And.HaveVariable("R_A1").OfTypes("A").WithDescription("A")
@@ -306,7 +306,7 @@ class BankAccount(object):
                 await server.SendDidOpenTextDocument(uri, code);
                 var analysis = await server.GetAnalysisAsync(uri);
 
-                analysis.Should().HaveClassInfoVariable("BankAccount")
+                analysis.Should().HaveClass("BankAccount")
                     .Which.Should().HaveVariable("overdrawn").WithValue<FunctionInfo>()
                     .Which.Should().HaveOverloadAt(0)
                     .Which.Should().HaveSingleReturnType("bool");

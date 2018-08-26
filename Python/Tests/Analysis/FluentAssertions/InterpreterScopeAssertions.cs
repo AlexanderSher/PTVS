@@ -48,7 +48,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndWhichConstraint<TScopeAssertions, IPythonModule>((TScopeAssertions)this, assertion.Which);
         }
 
-        public AndWhichConstraint<TScopeAssertions, ClassScope> HaveClassInfoVariable(string name, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<TScopeAssertions, ClassScope> HaveClass(string name, string because = "", params object[] reasonArgs) {
             var assertion = HaveVariable(name, because, reasonArgs)
                 .Which.Should().HaveValue<ClassInfo>()
                 .Which.Should().HaveScope();
@@ -56,7 +56,14 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndWhichConstraint<TScopeAssertions, ClassScope>((TScopeAssertions)this, assertion.Which);
         }
 
-        public AndWhichConstraint<TScopeAssertions, FunctionScope> HaveFunctionInfoVariable(string name, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<TScopeAssertions, AnalysisValueTestInfo<ClassInfo>> HaveClassInfo(string name, string because = "", params object[] reasonArgs) {
+            var assertion = HaveVariable(name, because, reasonArgs)
+                .Which.Should().HaveValue<ClassInfo>();
+
+            return new AndWhichConstraint<TScopeAssertions, AnalysisValueTestInfo<ClassInfo>>((TScopeAssertions)this, assertion.Which);
+        }
+
+        public AndWhichConstraint<TScopeAssertions, FunctionScope> HaveFunction(string name, string because = "", params object[] reasonArgs) {
             var assertion = HaveVariable(name, because, reasonArgs)
                 .Which.Should().HaveValue<FunctionInfo>()
                 .Which.Should().HaveFunctionScope();
@@ -74,10 +81,10 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndWhichConstraint<TScopeAssertions, VariableDefTestInfo>((TScopeAssertions)this, new VariableDefTestInfo(variableDef, name, Subject));
         }
         
-        public AndConstraint<TScopeAssertions> HaveClasses(params string[] classNames)
-            => HaveClasses(classNames, string.Empty);
+        public AndConstraint<TScopeAssertions> HaveClassVariables(params string[] classNames)
+            => HaveClassVariables(classNames, string.Empty);
 
-        public AndConstraint<TScopeAssertions> HaveClasses(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TScopeAssertions> HaveClassVariables(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             NotBeNull();
 
             foreach (var className in classNames) {
@@ -87,10 +94,10 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<TScopeAssertions>((TScopeAssertions)this);
         }
 
-        public AndConstraint<TScopeAssertions> HaveFunctions(params string[] functionNames) 
-            => HaveFunctions(functionNames, string.Empty);
+        public AndConstraint<TScopeAssertions> HaveFunctionVariables(params string[] functionNames) 
+            => HaveFunctionVariables(functionNames, string.Empty);
 
-        public AndConstraint<TScopeAssertions> HaveFunctions(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TScopeAssertions> HaveFunctionVariables(IEnumerable<string> functionNames, string because = "", params object[] reasonArgs) {
             Subject.Should().NotBeNull();
 
             foreach (var functionName in functionNames) {

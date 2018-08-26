@@ -21,6 +21,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using static System.FormattableString;
 
 namespace Microsoft.PythonTools.Analysis {
@@ -83,6 +84,14 @@ namespace Microsoft.PythonTools.Analysis {
             Python37_x64,
             IronPython27_x64,
             Jython27);
+
+        public static InterpreterConfiguration Required_Python27X => Python27 ?? Python27_x64 ?? NotInstalled("v2.7");
+        public static InterpreterConfiguration Required_Python31X => Python31 ?? Python31_x64 ?? NotInstalled("v3.1");
+        public static InterpreterConfiguration Required_Python32X => Python32 ?? Python32_x64 ?? NotInstalled("v3.2");
+        public static InterpreterConfiguration Required_Python33X => Python33 ?? Python33_x64 ?? NotInstalled("v3.3");
+        public static InterpreterConfiguration Required_Python34X => Python34 ?? Python34_x64 ?? NotInstalled("v3.4");
+        public static InterpreterConfiguration Required_Python35X => Python35 ?? Python35_x64 ?? NotInstalled("v3.5");
+        public static InterpreterConfiguration Required_Python36X => Python36 ?? Python36_x64 ?? NotInstalled("v3.6");
 
         public static InterpreterConfiguration LatestAvailable => LatestAvailable3X ?? LatestAvailable2X;
 
@@ -160,6 +169,11 @@ namespace Microsoft.PythonTools.Analysis {
                 );
             }
 
+            return null;
+        }
+
+        private static InterpreterConfiguration NotInstalled(string version) {
+            Assert.Inconclusive($"Python interpreter {version} is not installed");
             return null;
         }
     }

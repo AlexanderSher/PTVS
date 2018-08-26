@@ -126,7 +126,7 @@ namespace AnalysisTests {
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleContainerAnalysis() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
+            var configuration = PythonVersions.Required_Python34X;
             configuration.AssertInstalled();
             using (var server = await new Server().InitializeAsync(configuration)) {
                 var uri = TestData.GetTempPathUri("test-module.py");
@@ -184,11 +184,9 @@ dctv_s_i_item_1, dctv_s_i_item_2 = next(iter(dctv_s_i_items))
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleProtocolAnalysis() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from typing import *
+                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"from typing import *
 
 i : Iterable = ...
 ii : Iterator = ...
@@ -201,7 +199,6 @@ call_i_s_ret = call_i_s()
 call_iis_i : Callable[[int, int, str], int] = ...
 call_iis_i_ret = call_iis_i()
 ");
-                var analysis = await server.GetAnalysisAsync(uri);
 
                 analysis.Should().HaveVariable("i").WithDescription("iterable")
                     .And.HaveVariable("ii").WithDescription("iterator")
@@ -218,8 +215,7 @@ call_iis_i_ret = call_iis_i()
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNamedTupleAnalysis() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
                 var uri = TestData.GetTempPathUri("test-module.py");
                 await server.SendDidOpenTextDocument(uri, @"from typing import *
@@ -276,8 +272,7 @@ n2_i = n2[i]
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNamedTypeAlias() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
                 var uri = TestData.GetTempPathUri("test-module.py");
                 await server.SendDidOpenTextDocument(uri, @"from typing import *
@@ -307,8 +302,7 @@ n1 : MyNamedTuple = ...
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNestedIndex() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
                 var uri = TestData.GetTempPathUri("test-module.py");
                 await server.SendDidOpenTextDocument(uri, @"from typing import *
@@ -328,8 +322,7 @@ s = l_s[0]
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleGenerator() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             var code = @"from typing import *
 
 gen : Generator[str, None, int] = ...
@@ -347,15 +340,14 @@ g_i = next(g_g)
 
                 analysis.Should().HaveVariable("g_g").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("g_i").OfType(BuiltinTypeId.Str)
-                    .And.HaveFunctionInfoVariable("g")
+                    .And.HaveFunction("g")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
             }
         }
 
         [TestMethod, Priority(0)]
         public async Task FunctionAnnotation() {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             var code = @"
 def f(a : int, b : float) -> str: pass
 
@@ -376,8 +368,7 @@ x = f()
         }
 
         private async Task TypingModuleDocumentationExampleAsync(string code, IEnumerable<string> signatures) {
-            var configuration = PythonVersions.Python36_x64 ?? PythonVersions.Python36;
-            configuration.AssertInstalled();
+            var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
                 var uri = TestData.GetTempPathUri("test-module.py");
                 await server.SendDidOpenTextDocument(uri, code);

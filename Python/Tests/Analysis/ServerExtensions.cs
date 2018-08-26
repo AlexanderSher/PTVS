@@ -15,13 +15,11 @@
 // permissions and limitations under the License.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.PythonTools.Analysis.LanguageServer;
-using Microsoft.PythonTools.Intellisense;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Interpreter.Ast;
 using TestUtilities;
@@ -72,32 +70,55 @@ namespace Microsoft.PythonTools.Analysis {
             }
         }
 
-        public static Task<ModuleAnalysis> AddModuleAndGetAnalysisAsync(this Server server, string content, int waitingTime = 30000) 
-            => server.AddModuleAndGetAnalysisAsync("test-module", "test-module.py", content, waitingTime);
-
-        public static Task<ModuleAnalysis> AddModuleAndGetAnalysisAsync(this Server server, string moduleName, string relativePath, string content, int waitingTime = 3000) {
-            var entry = server.AddModuleWithContent(moduleName, relativePath, content);
-            return entry.GetAnalysisAsync(cancellationToken: new CancellationTokenSource(waitingTime).Token);
-        }
+        // TODO: Replace usages of AddModuleWithContent with SendDidOpenTextDocument
+        public static ProjectEntry AddModuleWithContent(this Server server, string content)
+            => server.AddModuleWithContent("test-module", "test-module.py", content);
 
         public static ProjectEntry AddModuleWithContent(this Server server, string moduleName, string relativePath, string content) {
-            var entry = (ProjectEntry)server.Analyzer.AddModule(moduleName, TestData.GetPath(relativePath));
+            var entry = (ProjectEntry)server.Analyzer.AddModule(moduleName, TestData.GetTempPathUri(relativePath).AbsolutePath);
             entry.ResetDocument(0, content);
             server.EnqueueItem(entry);
             return entry;
         }
 
-        public static Task SendDidOpenTextDocument(this Server server, string path, string content, string languageId = null) 
-            => server.SendDidOpenTextDocument(new Uri(path), content, languageId);
+        public static Task<CompletionList> SendCompletion(this Server server, Uri uri, int line, int character) {
+            return server.Completion(new CompletionParams {
+                textDocument = new TextDocumentIdentifier {
+                    uri = uri
+                },
+                position = new Position {
+                    line = line,
+                    character = character
+                }
+            });
+        }
 
-        public static Task SendDidOpenTextDocument(this Server server, Uri uri, string content, string languageId = null) {
-            return server.DidOpenTextDocument(new DidOpenTextDocumentParams {
+        public static Task<SignatureHelp> SendSignatureHelp(this Server server, Uri uri, int line, int character) {
+            return server.SignatureHelp(new TextDocumentPositionParams {
+                textDocument = uri,
+                position = new Position {
+                    line = line,
+                    character = character
+                }
+            });
+        }
+
+        public static async Task SendDidOpenTextDocument(this Server server, Uri uri, string content, string languageId = null) {
+            await server.DidOpenTextDocument(new DidOpenTextDocumentParams {
                 textDocument = new TextDocumentItem {
                     uri = uri,
                     text = content,
                     languageId = languageId ?? "python"
                 }
             });
+        }
+
+        public static async Task<ModuleAnalysis> SendDidOpenTextDocumentAndGetAnalysisAsync(this Server server, string content, int failAfter = 30000, string languageId = null) {
+            var cancellationToken = new CancellationTokenSource(failAfter).Token;
+            await server.SendDidOpenTextDocument(TestData.GetTempPathUri("test_module.py"), content, languageId);
+            cancellationToken.ThrowIfCancellationRequested();
+            var projectEntry = (ProjectEntry) server.ProjectFiles.All.Single();
+            return await projectEntry.GetAnalysisAsync(cancellationToken: cancellationToken);
         }
 
         public static void SendDidChangeTextDocument(this Server server, Uri uri, string text) {
@@ -111,6 +132,12 @@ namespace Microsoft.PythonTools.Analysis {
                     }, 
                 }
             });
+        }
+
+        public static async Task<ModuleAnalysis> SendDidChangeTextDocumentAndGetAnalysisAsync(this Server server, string text, int failAfter = 30000) {
+            var projectEntry = (ProjectEntry) server.ProjectFiles.All.Single();
+            server.SendDidChangeTextDocument(projectEntry.DocumentUri, text);
+            return await projectEntry.GetAnalysisAsync(cancellationToken: new CancellationTokenSource(failAfter).Token);
         }
 
         private static void Server_OnLogMessage(object sender, LogMessageEventArgs e) {

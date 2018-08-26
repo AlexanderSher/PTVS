@@ -28,7 +28,7 @@ namespace Microsoft.PythonTools.Analysis.Values {
     internal class ClassInfo : AnalysisValue, IReferenceableContainer, IHasRichDescription, IHasQualifiedName {
         private AnalysisUnit _analysisUnit;
         private readonly List<IAnalysisSet> _bases;
-        internal Mro _mro;
+        internal readonly Mro _mro;
         private readonly InstanceInfo _instanceInfo;
         private ClassScope _scope;
         private readonly int _declVersion;

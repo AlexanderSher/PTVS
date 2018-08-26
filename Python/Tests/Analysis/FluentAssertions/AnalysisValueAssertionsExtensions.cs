@@ -15,11 +15,15 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
+using FluentAssertions;
+using Microsoft.PythonTools.Analysis.Values;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class ModuleAnalysisAssertionsExtensions {
-        public static ModuleAnalysisAssertions Should(this ModuleAnalysis moduleAnalysis) 
-            => new ModuleAnalysisAssertions(moduleAnalysis);
+    internal static class AnalysisValueAssertionsExtensions {
+        public static AndWhichConstraint<TAssertion, AnalysisValueTestInfo<ClassInfo>> WithMethodResolutionOrder<TAssertion>(this AndWhichConstraint<TAssertion, AnalysisValueTestInfo<ClassInfo>> constraint, params string[] classNames) {
+            constraint.Which.Should().HaveMethodResolutionOrder(classNames);
+            return constraint;
+        }
     }
 }

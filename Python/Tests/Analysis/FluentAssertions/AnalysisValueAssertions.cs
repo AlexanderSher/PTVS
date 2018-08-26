@@ -1,4 +1,20 @@
-﻿using System;
+﻿// Python Tools for Visual Studio
+// Copyright(c) Microsoft Corporation
+// All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the License); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+//
+// THIS CODE IS PROVIDED ON AN  *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS
+// OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY
+// IMPLIED WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+// MERCHANTABLITY OR NON-INFRINGEMENT.
+//
+// See the Apache Version 2.0 License for specific language governing
+// permissions and limitations under the License.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
@@ -45,6 +61,25 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
+
+        public AndConstraint<TAssertions> HaveOnlyMembers(params string[] memberNames)
+            => HaveOnlyMembers(memberNames, string.Empty);
+
+        public AndConstraint<TAssertions> HaveOnlyMembers(IEnumerable<string> memberNames, string because = "", params object[] reasonArgs) {
+            var actualNames = Subject.GetAllMembers(((ModuleScope)OwnerScope.GlobalScope).Module.InterpreterContext).Keys.ToArray();
+            var expectedNames = memberNames.ToArray();
+
+            var errorMessage = GetAssertCollectionOnlyContainsMessage(actualNames, expectedNames, GetName(), "member ", "members ");
+
+            Execute.Assertion.ForCondition(errorMessage == null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
+
+            return new AndConstraint<TAssertions>((TAssertions)this);
+        }
+
+        public AndConstraint<TAssertions> HaveMemberOfType(string memberName, BuiltinTypeId typeId)
+            => HaveMemberOfTypes(memberName, typeId);
 
         public AndConstraint<TAssertions> HaveMemberOfTypes(string memberName, params BuiltinTypeId[] typeIds)
             => HaveMemberOfTypes(memberName, typeIds, string.Empty);

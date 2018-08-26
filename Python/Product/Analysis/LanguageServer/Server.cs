@@ -391,7 +391,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         }
 
         private void Interpreter_ModuleNamesChanged(object sender, EventArgs e) {
-            Analyzer.Modules.ReInit();
+            Analyzer.Modules.ReInitAsync().WaitAndUnwrapExceptions();
             foreach (var entry in Analyzer.ModulesByFilename) {
                 _queue.Enqueue(entry.Value.ProjectEntry, AnalysisPriority.Normal);
             }

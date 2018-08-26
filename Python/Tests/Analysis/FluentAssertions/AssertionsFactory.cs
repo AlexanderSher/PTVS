@@ -17,6 +17,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.LanguageServer;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Interpreter.Ast;
@@ -69,13 +70,25 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public static FunctionScopeAssertions Should(this FunctionScope functionScope)
             => new FunctionScopeAssertions(functionScope);
 
+        public static CompletionListAssertions Should(this CompletionList completionList)
+            => new CompletionListAssertions(completionList);
+
         public static InterpreterScopeAssertions Should(this InterpreterScope interpreterScope)
             => new InterpreterScopeAssertions(interpreterScope);
 
         public static MemberContainerAssertions<IMemberContainer> Should(this IMemberContainer memberContainer)
             => new MemberContainerAssertions<IMemberContainer>(memberContainer);
 
+        public static ModuleAnalysisAssertions Should(this ModuleAnalysis moduleAnalysis)
+            => new ModuleAnalysisAssertions(moduleAnalysis);
+
         public static ParameterResultAssertions Should(this ParameterResult overloadResult)
             => new ParameterResultAssertions(overloadResult);
+
+        public static SignatureHelpAssertions Should(this SignatureHelp signatureHelp)
+            => new SignatureHelpAssertions(signatureHelp);
+
+        public static SignatureInformationAssertions Should(this SignatureInformation signatureInformation)
+            => new SignatureInformationAssertions(signatureInformation);
     }
 }

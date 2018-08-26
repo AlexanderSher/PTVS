@@ -14,12 +14,14 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Values;
+using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
@@ -31,9 +33,40 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public AndWhichConstraint<ClassInfoAssertions, ClassScope> HaveScope(string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(Subject.Scope != null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.DeclaringModule.ModuleName}.{Subject.Name} to have scope specified{{reason}}.");
+                .FailWith($"Expected {GetName()} to have scope specified{{reason}}.");
 
             return new AndWhichConstraint<ClassInfoAssertions, ClassScope>(this, Subject.Scope);
         }
+
+        public AndConstraint<ClassInfoAssertions> HaveMethodResolutionOrder(params string[] classNames)
+            => HaveMethodResolutionOrder(classNames, string.Empty);
+
+        public AndConstraint<ClassInfoAssertions> HaveMethodResolutionOrder(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject._mro != null && Subject._mro.IsValid)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {GetName()} to have valid method resolution order.");
+
+            var expected = classNames.ToArray();
+            var actual = FlattenAnalysisValues(Subject.Mro.SelectMany(av => av))
+                .Select(av => av.ShortDescription)
+                .ToArray();
+
+            var errorMessage = GetAssertSequenceEqualMessage(actual, expected, GetName(), "MRO ");
+            Execute.Assertion.ForCondition(errorMessage == null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
+
+            return new AndConstraint<ClassInfoAssertions>(this);
+        }
+
+        public AndConstraint<ClassInfoAssertions> HaveInvalidMethodResolutionOrder(string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(Subject._mro == null || !Subject._mro.IsValid)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {GetName()} to have invalid method resolution order.");
+
+            return new AndConstraint<ClassInfoAssertions>(this);
+        }
+
+        protected override string GetName() => $"class {GetQuotedName(Subject)}";
     }
 }

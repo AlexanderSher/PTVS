@@ -14,11 +14,13 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Analyzer;
+using Microsoft.PythonTools.Analysis.Infrastructure;
 using Microsoft.PythonTools.Analysis.Values;
 using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Parsing;
@@ -32,7 +34,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             => AssertTypeIds(FlattenAnalysisValues(actualTypeIds).Select(av => av.PythonType?.TypeId ?? av.TypeId), typeIds, name, languageVersionIs3X, because, reasonArgs);
 
         public static void AssertTypeIds(IEnumerable<BuiltinTypeId> actualTypeIds, IEnumerable<BuiltinTypeId> typeIds, string name, bool languageVersionIs3X, string because, object[] reasonArgs) {
-            var expectedTypeIds = typeIds.Select(t => {
+            var expected = typeIds.Select(t => {
                 switch (t) {
                     case BuiltinTypeId.Str:
                         return languageVersionIs3X ? BuiltinTypeId.Unicode : BuiltinTypeId.Bytes;
@@ -44,21 +46,70 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             }).ToArray();
 
             var actual = actualTypeIds.ToArray();
-            var excess = actual.Except(expectedTypeIds);
-            var missing = expectedTypeIds.Except(actual)
-                .ToArray();
+            var errorMessage = GetAssertCollectionOnlyContainsMessage(actual, expected, name, "type ", "types ");
 
-            if (missing.Any()) {
-                var actualString = actual.Length > 0 ? string.Join(", ", actual) : "none specified";
-                var message = expectedTypeIds.Length > 1
-                    ? $"Expected {name} to have types {string.Join(", ", expectedTypeIds)}{{reason}}, but couldn't find {string.Join(", ", missing)}"
-                    : $"Expected {name} to have type '{expectedTypeIds[0]}'{{reason}}, but it has {actualString}";
-
-                Execute.Assertion
-                    .BecauseOf(because, reasonArgs)
-                    .FailWith(message);
-            }
+            Execute.Assertion.ForCondition(errorMessage == null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
         }
+
+        public static string GetAssertCollectionContainsMessage<T>(T[] actual, T[] expected, string name, string itemNameSingle, string itemNamePlural, Func<T[], string> itemsFormatter = null) {
+            itemsFormatter = itemsFormatter ?? AssertCollectionDefaultItemsFormatter;
+            var missing = expected.Except(actual).ToArray();
+
+            if (missing.Length > 0) {
+                return expected.Length > 1
+                    ? $"Expected {name} to have {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it has {itemsFormatter(actual)}, which doesn't include {itemsFormatter(missing)}."
+                    : $"Expected {name} to have {itemNameSingle}'{expected[0]}'{{reason}}, but it has {itemsFormatter(actual)} instead.";
+            }
+
+            return null;
+        }
+
+        public static string GetAssertCollectionOnlyContainsMessage<T>(T[] actual, T[] expected, string name, string itemNameSingle, string itemNamePlural, Func<T[], string> itemsFormatter = null) {
+            itemsFormatter = itemsFormatter ?? AssertCollectionDefaultItemsFormatter;
+            var message = GetAssertCollectionContainsMessage(actual, expected, name, itemNameSingle, itemNamePlural, itemsFormatter);
+
+            if (message != null) {
+                return message;
+            }
+
+            var excess = expected.Length > 0 ? actual.Except(expected).ToArray() : actual;
+            if (excess.Length > 0) {
+                return expected.Length > 1
+                    ? $"Expected {name} to have only {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it also has {itemsFormatter(excess)}."
+                    : expected.Length > 0
+                        ? $"Expected {name} to have only {itemNameSingle}'{expected[0]}'{{reason}}, but it also has {itemsFormatter(excess)}."
+                        : $"Expected {name} to have no {itemNamePlural}{{reason}}, but it has {itemsFormatter(excess)}.";
+            }
+
+            return null;
+        }
+        
+        public static string GetAssertSequenceEqualMessage<T>(T[] actual, T[] expected, string name, string itemNamePlural, Func<T[], string> itemsFormatter = null) {
+            itemsFormatter = itemsFormatter ?? AssertCollectionDefaultItemsFormatter;
+
+            for (var i = 0; i < actual.Length && i < expected.Length; i++) {
+                if (!Equals(actual[i], expected[i])) {
+                    return $"Expected {name} to have {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it has {itemsFormatter(actual)}, which is different at {i}: '{actual[i]}' instead of '{expected[i]}'.";
+                }
+            }
+
+            if (actual.Length > expected.Length) {
+                return $"Expected {name} to have {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it also has {itemsFormatter(actual.Skip(expected.Length).ToArray())} at the end.";
+            }
+
+            if (expected.Length > actual.Length) {
+                return $"Expected {name} to have {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it misses {itemsFormatter(expected.Skip(actual.Length).ToArray())} at the end.";
+            }
+
+            return null;
+        }
+        
+        private static string AssertCollectionDefaultItemsFormatter<T>(T[] items) 
+            => items.Length > 1 
+                ? "[{0}]".FormatInvariant(string.Join(", ", items)) 
+                : items.Length == 1 ? $"'{items[0]}'" : "none";
 
         public static string GetQuotedNames(IEnumerable<object> values) {
             return GetQuotedNames(values.Select(GetName));
