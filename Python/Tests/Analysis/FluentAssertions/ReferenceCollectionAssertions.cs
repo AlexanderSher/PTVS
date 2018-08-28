@@ -14,6 +14,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         protected override string Identifier => nameof(Reference) + "Collection";
 
+        [CustomAssertion]
         public AndConstraint<ReferenceCollectionAssertions> HaveReferenceAt(IPythonProjectEntry projectEntry, int startLine, int startCharacter, int endLine, int endCharacter, ReferenceKind? referenceKind = null, string because = "", params object[] reasonArgs) {
             var range = new Range {
                 start = new Position {
@@ -34,6 +35,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<ReferenceCollectionAssertions>(this);
         }
 
+        [CustomAssertion]
         public AndConstraint<ReferenceCollectionAssertions> HaveReferenceAt(Uri documentUri, int startLine, int startCharacter, int endLine, int endCharacter, ReferenceKind? referenceKind = null, string because = "", params object[] reasonArgs) {
             var range = new Range {
                 start = new Position {
@@ -45,6 +47,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                     character = endCharacter
                 }
             };
+            
             var error = FindReference(documentUri, documentUri.AbsolutePath, range, referenceKind);
             Execute.Assertion.ForCondition(error == string.Empty)
                 .BecauseOf(because, reasonArgs)
@@ -53,21 +56,22 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<ReferenceCollectionAssertions>(this);
         }
 
+        [CustomAssertion]
         private string FindReference(Uri documentUri, string moduleName, Range range, ReferenceKind? referenceKind = null) {
             var candidates = Subject.Where(av => Equals(av.uri, documentUri)).ToArray();
             if (candidates.Length == 0) {
-                return $"Expected to have reference in the module '{moduleName}'{{reason}}, but no references has been found.";
+                return $"Expected {GetName()} to have reference in the module '{moduleName}'{{reason}}, but no references has been found.";
             }
 
             foreach (var candidate in candidates) {
                 if (RangeEquals(candidate.range, range)) {
                     return !referenceKind.HasValue || candidate._kind == referenceKind
                         ? string.Empty
-                        : $"Expected to have reference of type '{referenceKind}'{{reason}}, but reference in module '{moduleName}' at {ToString(range)} has type '{candidate._kind}'";
+                        : $"Expected {GetName()} to have reference of type '{referenceKind}'{{reason}}, but reference in module '{moduleName}' at {ToString(range)} has type '{candidate._kind}'";
                 }
             }
 
-            var errorMessage = $"Expected to have reference at {ToString(range)}{{reason}}, but module '{moduleName}' has no references at that range.";
+            var errorMessage = $"Expected {GetName()} to have reference at {ToString(range)}{{reason}}, but module '{moduleName}' has no references at that range.";
             if (!referenceKind.HasValue) {
                 return errorMessage;
             }
@@ -88,5 +92,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                && r1.start.character == r2.start.character
                && r1.end.line == r2.end.line
                && r1.end.character == r2.end.character;
+
+        [CustomAssertion]
+        private static string GetName() => CallerIdentifier.DetermineCallerIdentity() ?? "collection";
     }
 }

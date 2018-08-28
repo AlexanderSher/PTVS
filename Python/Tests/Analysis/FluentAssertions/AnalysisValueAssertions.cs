@@ -78,6 +78,22 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
 
+        public AndConstraint<TAssertions> HaveMembers(params string[] memberNames)
+            => HaveOnlyMembers(memberNames, string.Empty);
+
+        public AndConstraint<TAssertions> HaveMembers(IEnumerable<string> memberNames, string because = "", params object[] reasonArgs) {
+            var actualNames = Subject.GetAllMembers(((ModuleScope)OwnerScope.GlobalScope).Module.InterpreterContext).Keys.ToArray();
+            var expectedNames = memberNames.ToArray();
+
+            var errorMessage = GetAssertCollectionContainsMessage(actualNames, expectedNames, GetName(), "member ", "members ");
+
+            Execute.Assertion.ForCondition(errorMessage == null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
+
+            return new AndConstraint<TAssertions>((TAssertions)this);
+        }
+
         public AndConstraint<TAssertions> HaveMemberOfType(string memberName, BuiltinTypeId typeId)
             => HaveMemberOfTypes(memberName, typeId);
 

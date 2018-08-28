@@ -29,10 +29,18 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<ParameterResultAssertions>(this);
         }
 
-        public AndConstraint<ParameterResultAssertions> HaveNoDefaultValue( string because = "", params object[] reasonArgs) {
+        public AndConstraint<ParameterResultAssertions> HaveDefaultValue(string defaultValue, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(!string.IsNullOrEmpty(Subject.DefaultValue))
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected '{Subject.Name}' parameter to have default value{defaultValue}{{reason}}, but it has '{Subject.DefaultValue}'.");
+
+            return new AndConstraint<ParameterResultAssertions>(this);
+        }
+
+        public AndConstraint<ParameterResultAssertions> HaveNoDefaultValue(string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(string.IsNullOrEmpty(Subject.DefaultValue))
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {Subject.Name} parameter to have no default value{{reason}}, but it has '{Subject.DefaultValue}'.");
+                .FailWith($"Expected '{Subject.Name}' parameter to have no default value{{reason}}, but it has '{Subject.DefaultValue}'.");
 
             return new AndConstraint<ParameterResultAssertions>(this);
         }
