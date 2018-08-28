@@ -764,6 +764,7 @@ class D(object):
                 text1 = text1.Substring(0, text1.IndexOf("    def")) + Environment.NewLine + text1.Substring(text1.IndexOf("    def"));
                 server.SendDidChangeTextDocument(uri1, text1);
                 await server.GetAnalysisAsync(uri1);
+
                 references = await server.SendFindReferences(uri1, 5, 9);
 
                 references.Should().HaveCount(3)
@@ -779,9 +780,9 @@ class D(object):
                 references = await server.SendFindReferences(uri1, 5, 9);
 
                 references.Should().HaveCount(3)
-                    .And.HaveReferenceAt(uri1, 6, 5, 7, 13, ReferenceKind.Value)
-                    .And.HaveReferenceAt(uri1, 6, 9, 6, 19, ReferenceKind.Definition)
-                    .And.HaveReferenceAt(uri2, 6, 20, 6, 30, ReferenceKind.Reference);
+                    .And.HaveReferenceAt(uri1, 5, 4, 6, 12, ReferenceKind.Value)
+                    .And.HaveReferenceAt(uri1, 5, 8, 5, 18, ReferenceKind.Definition)
+                    .And.HaveReferenceAt(uri2, 5, 19, 5, 29, ReferenceKind.Reference);
             }
         }
 
