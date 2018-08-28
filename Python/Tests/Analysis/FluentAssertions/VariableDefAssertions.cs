@@ -70,6 +70,13 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<VariableDefAssertions>(this);
         }
 
+        public AndConstraint<VariableDefAssertions> HaveNoTypes(string because = "", params object[] reasonArgs) {
+            var languageVersionIs3X = Is3X(_scope);
+            AssertTypeIds(Subject.Types, new BuiltinTypeId[0], $"{_moduleName}.{_name}", languageVersionIs3X, because, reasonArgs);
+
+            return new AndConstraint<VariableDefAssertions>(this);
+        }
+
         public AndConstraint<VariableDefAssertions> HaveResolvedType(BuiltinTypeId typeId, string because = "", params object[] reasonArgs)
             => HaveResolvedTypes(new[]{ typeId }, because, reasonArgs);
 
@@ -85,6 +92,25 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<VariableDefAssertions>(this);
         }
 
+        public AndConstraint<VariableDefAssertions> HaveResolvedClassName(string className, string because = "", params object[] reasonArgs)
+            => HaveResolvedClassNames(new[] { className }, because, reasonArgs);
+
+        public AndConstraint<VariableDefAssertions> HaveResolvedClassNames(params string[] classNames)
+            => HaveResolvedClassNames(classNames, string.Empty);
+
+        public AndConstraint<VariableDefAssertions> HaveResolvedClassNames(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+            var resolved = Subject.TypesNoCopy.Resolve(new AnalysisUnit(null, null, _scope, true));
+            var expected = classNames.ToArray();
+            var actual = FlattenAnalysisValues(resolved).Select(av => av.ShortDescription).ToArray();
+
+            var message = GetAssertCollectionOnlyContainsMessage(actual, expected, $"variable '{_moduleName}.{_name}'", "resolved types ", "resolved type ");
+            Execute.Assertion.ForCondition(message == null)
+                    .BecauseOf(because, reasonArgs)
+                    .FailWith(message);
+
+            return new AndConstraint<VariableDefAssertions>(this);
+        }
+
         public AndConstraint<VariableDefAssertions> HaveClassName(string className, string because = "", params object[] reasonArgs)
             => HaveClassNames(new[] { className }, because, reasonArgs);
 
@@ -92,18 +118,19 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             => HaveClassNames(classNames, string.Empty);
 
         public AndConstraint<VariableDefAssertions> HaveClassNames(IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
-            var expectedClassNames = classNames.ToArray();
-            var missingClassNames = expectedClassNames.Except(FlattenAnalysisValues(Subject.Types).Select(av => av.ShortDescription)).ToArray();
+            var values = FlattenAnalysisValues(Subject.Types).ToArray();
 
-            if (missingClassNames.Any()) {
-                var message = expectedClassNames.Length > 1
-                    ? $"Expected {_moduleName}.{_name} to have types {string.Join(", ", expectedClassNames)}{{reason}}, but couldn't find {string.Join(", ", missingClassNames)}"
-                    : $"Expected {_moduleName}.{_name} to have type {expectedClassNames[0]}{{reason}}";
+            var actualMemberTypes = values.Select(av => av.MemberType).ToArray();
+            var expectedMemberTypes = Enumerable.Repeat(PythonMemberType.Instance, actualMemberTypes.Length).ToArray();
+            var actualDescription = FlattenAnalysisValues(Subject.Types).Select(av => av.ShortDescription).ToArray();
+            var expectedDescription = classNames.ToArray();
 
-                Execute.Assertion
+            var message = GetAssertCollectionOnlyContainsMessage(actualMemberTypes, expectedMemberTypes, $"variable '{_moduleName}.{_name}'", "member types ", "member type ")
+                ?? GetAssertCollectionOnlyContainsMessage(actualDescription, expectedDescription, $"variable '{_moduleName}.{_name}'", "types ", "type ");
+
+            Execute.Assertion.ForCondition(message == null)
                     .BecauseOf(because, reasonArgs)
                     .FailWith(message);
-            }
 
             return new AndConstraint<VariableDefAssertions>(this);
         }

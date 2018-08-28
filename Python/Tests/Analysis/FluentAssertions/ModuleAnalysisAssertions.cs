@@ -51,6 +51,12 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             var constraint = _interpreterScopeAssertions.HaveClass(name, because, reasonArgs);
             return new AndWhichConstraint<ModuleAnalysisAssertions, ClassScope>(this, constraint.Which);
         }
+        
+        public AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<FunctionInfo>> HaveFunctionInfo(string name, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+            var constraint = _interpreterScopeAssertions.HaveFunctionInfo(name, because, reasonArgs);
+            return new AndWhichConstraint<ModuleAnalysisAssertions, AnalysisValueTestInfo<FunctionInfo>>(this, constraint.Which);
+        }
 
         public AndWhichConstraint<ModuleAnalysisAssertions, FunctionScope> HaveFunction(string name, string because = "", params object[] reasonArgs) {
             NotBeNull(because, reasonArgs);

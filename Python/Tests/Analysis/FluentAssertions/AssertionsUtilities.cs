@@ -60,7 +60,9 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             if (missing.Length > 0) {
                 return expected.Length > 1
                     ? $"Expected {name} to have {itemNamePlural}{itemsFormatter(expected)}{{reason}}, but it has {itemsFormatter(actual)}, which doesn't include {itemsFormatter(missing)}."
-                    : $"Expected {name} to have {itemNameSingle}'{expected[0]}'{{reason}}, but it has {itemsFormatter(actual)} instead.";
+                    : expected.Length > 0 
+                        ? $"Expected {name} to have {itemNameSingle}'{expected[0]}'{{reason}}, but it has {itemsFormatter(actual)}."
+                        : $"Expected {name} to have no {itemNamePlural}{{reason}}, but it has {itemsFormatter(actual)}.";
             }
 
             return null;
@@ -106,7 +108,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return null;
         }
         
-        private static string AssertCollectionDefaultItemsFormatter<T>(T[] items) 
+        public static string AssertCollectionDefaultItemsFormatter<T>(T[] items) 
             => items.Length > 1 
                 ? "[{0}]".FormatInvariant(string.Join(", ", items)) 
                 : items.Length == 1 ? $"'{items[0]}'" : "none";
@@ -143,8 +145,20 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         }
 
         public static string GetQuotedName(object value) {
-            var name = GetName(value);
-            return string.IsNullOrEmpty(name) ? string.Empty : $"'{name}'";
+            string name;
+            switch (value) {
+                case IHasQualifiedName _:
+                case IPythonModule _:
+                case BuiltinInstanceInfo _:
+                    name = GetName(value);
+                    return string.IsNullOrEmpty(name) ? string.Empty : $"'{name}'";
+                case AnalysisValue analysisValue:
+                    name = analysisValue.Name;
+                    return string.IsNullOrEmpty(name) ? "value" : $"value '{name}'";
+                default:
+                    name = GetName(value);
+                    return string.IsNullOrEmpty(name) ? string.Empty : $"'{name}'";
+            }
         }
 
         public static string GetName(object value) {
@@ -158,7 +172,7 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
                 case InterpreterScope interpreterScope:
                     return interpreterScope.Name;
                 case AnalysisValue analysisValue:
-                    return analysisValue.Name;
+                    return $"value {analysisValue.Name}";
                 case string str:
                     return str;
                 default:

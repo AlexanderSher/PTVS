@@ -15,17 +15,16 @@
 // permissions and limitations under the License.
 
 using System.Diagnostics.CodeAnalysis;
-using FluentAssertions;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal static class OverloadResultAssertionsExtensions {
-        public static OverloadResultAssertions Should(this OverloadResultTestInfo overloadResult)
-            => new OverloadResultAssertions(overloadResult.Value, overloadResult.Name);
+    internal sealed class OverloadResultTestInfo {
+        public IOverloadResult Value { get; }
+        public string Name { get; }
 
-        public static AndWhichConstraint<TAssertions, OverloadResultTestInfo> WithSingleReturnType<TAssertions>(this AndWhichConstraint<TAssertions, OverloadResultTestInfo> constraint, string type, string because = "", params object[] reasonArgs) {
-            constraint.Which.Should().HaveSingleReturnType(type, because, reasonArgs);
-            return constraint;
+        public OverloadResultTestInfo(IOverloadResult value, string name) {
+            Value = value;
+            Name = name;
         }
     }
 }

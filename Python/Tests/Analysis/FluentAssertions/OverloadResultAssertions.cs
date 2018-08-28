@@ -24,7 +24,10 @@ using static Microsoft.PythonTools.Analysis.FluentAssertions.AssertionsUtilities
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     internal class OverloadResultAssertions : ReferenceTypeAssertions<IOverloadResult, OverloadResultAssertions> {
-        public OverloadResultAssertions(IOverloadResult overloadResult) {
+        private readonly string _name;
+
+        public OverloadResultAssertions(IOverloadResult overloadResult, string name) {
+            _name = name;
             Subject = overloadResult;
         }
 
@@ -33,7 +36,15 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public AndConstraint<OverloadResultAssertions> HaveName(string name, string because = "", params object[] reasonArgs) {
             Execute.Assertion.ForCondition(string.Equals(Subject.Name, name, StringComparison.Ordinal))
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected '{Subject.Name}' to have name {name}{{reason}}.");
+                .FailWith($"Expected {_name} to have name {name}{{reason}}.");
+
+            return new AndConstraint<OverloadResultAssertions>(this);
+        }
+
+        public AndConstraint<OverloadResultAssertions> HaveDocumentation(string documentation, string because = "", params object[] reasonArgs) {
+            Execute.Assertion.ForCondition(string.Equals(Subject.Documentation, documentation, StringComparison.Ordinal))
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected {_name} to have documentation '{documentation}'{{reason}}, but it has '{Subject.Documentation}'.");
 
             return new AndConstraint<OverloadResultAssertions>(this);
         }
@@ -43,8 +54,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             Execute.Assertion.ForCondition(parameters.Length > index)
                 .BecauseOf(because, reasonArgs)
                 .FailWith(parameters.Length > 0
-                    ? $"Expected '{Subject.Name}' to have parameter at index {index}{{reason}}, but it has only {parameters.Length} parameters."
-                    : $"Expected '{Subject.Name}' to have parameter at index {index}{{reason}}, but it has none.");
+                    ? $"Expected {_name} to have parameter at index {index}{{reason}}, but it has only {parameters.Length} parameters."
+                    : $"Expected {_name} to have parameter at index {index}{{reason}}, but it has none.");
 
             return new AndWhichConstraint<OverloadResultAssertions, ParameterResult>(this, Subject.Parameters[index]);
         }
@@ -54,8 +65,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             Execute.Assertion.ForCondition(parameters.Length == 1)
                 .BecauseOf(because, reasonArgs)
                 .FailWith(parameters.Length > 0
-                    ? $"Expected '{Subject.Name}' overload to have only one parameter{{reason}}, but it has {parameters.Length} parameters."
-                    : $"Expected '{Subject.Name}' overload to have one parameter{{reason}}, but it has none.");
+                    ? $"Expected {_name} overload to have only one parameter{{reason}}, but it has {parameters.Length} parameters."
+                    : $"Expected {_name} overload to have one parameter{{reason}}, but it has none.");
 
             return new AndWhichConstraint<OverloadResultAssertions, ParameterResult>(this, parameters[0]);
         }
@@ -65,34 +76,30 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public AndConstraint<OverloadResultAssertions> HaveParameters(IEnumerable<string> parameters, string because = "", params object[] reasonArgs) {
             var current = Subject.Parameters.Select(pr => pr.Name).ToArray();
             var expected = parameters.ToArray();
-            var currentString = string.Join(",", current);
-            var expectedString = string.Join(",", expected);
 
-            Execute.Assertion.ForCondition(current.Length == expected.Length)
+            var message = GetAssertCollectionOnlyContainsMessage(current, expected, _name, "parameter ", "parameters ");
+            Execute.Assertion.ForCondition(message == null)
                 .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected '{Subject.Name}' overload to have {expected.Length} parameters ({expectedString}){{reason}}, but it has {current.Length} ({string.Join(",", current)}).");
-
-            for (var i = 0; i < current.Length; i++) {
-                Execute.Assertion.ForCondition(string.Equals(current[i], expected[i], StringComparison.Ordinal))
-                    .BecauseOf(because, reasonArgs)
-                    .FailWith($"Expected '{Subject.Name}' overload to have parameters ({expectedString}){{reason}}, but it has ({currentString}), which is different from expected at {i}.");
-            }
+                .FailWith(message);
 
             return new AndConstraint<OverloadResultAssertions>(this);
         }
+
+        public AndConstraint<OverloadResultAssertions> HaveNoParameters(string because = "", params object[] reasonArgs)
+            => HaveParameters(Enumerable.Empty<string>(), because, reasonArgs);
 
         public AndConstraint<OverloadResultAssertions> HaveSingleReturnType(string type, string because = "", params object[] reasonArgs) {
             var returnTypes = ((IOverloadResult2)Subject).ReturnType;
             Execute.Assertion.ForCondition(returnTypes.Count == 1)
                 .BecauseOf(because, reasonArgs)
                 .FailWith(returnTypes.Count > 0
-                    ? $"Expected '{Subject.Name}' overload to have only one return type{{reason}}, but it has {returnTypes.Count} return types."
-                    : $"Expected '{Subject.Name}' overload to have a return type{{reason}}, but it has none.");
+                    ? $"Expected {_name} to have only one return type{{reason}}, but it has {returnTypes.Count} return types."
+                    : $"Expected {_name} to have a return type{{reason}}, but it has none.");
 
             if (returnTypes.Count == 1) {
                 Execute.Assertion.ForCondition(string.Equals(returnTypes[0], type, StringComparison.Ordinal))
                     .BecauseOf(because, reasonArgs)
-                    .FailWith($"Expected '{Subject.Name}' overload to have return type [{type}]{{reason}}, but it has [{returnTypes[0]}].");
+                    .FailWith($"Expected {_name} to have return type [{type}]{{reason}}, but it has [{returnTypes[0]}].");
             }
 
             return new AndConstraint<OverloadResultAssertions>(this);

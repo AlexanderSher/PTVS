@@ -61,8 +61,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
         public static SequenceInfoAssertions Should(this AnalysisValueTestInfo<SequenceInfo> testInfo)
             => new SequenceInfoAssertions(testInfo);
 
-        public static AnalysisVariableCollectionAssertions Should(this IEnumerable<IAnalysisVariable> analysisVariables)
-            => new AnalysisVariableCollectionAssertions(analysisVariables);
+        public static SpecializedCallableAssertions Should(this AnalysisValueTestInfo<SpecializedCallable> specializedCallable)
+            => new SpecializedCallableAssertions(specializedCallable);
 
         public static AstPythonFunctionAssertions Should(this AstPythonFunction pythonFunction)
             => new AstPythonFunctionAssertions(pythonFunction);
@@ -84,6 +84,9 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public static ParameterResultAssertions Should(this ParameterResult overloadResult)
             => new ParameterResultAssertions(overloadResult);
+
+        public static ReferenceCollectionAssertions Should(this IEnumerable<Reference> references)
+            => new ReferenceCollectionAssertions(references);
 
         public static SignatureHelpAssertions Should(this SignatureHelp signatureHelp)
             => new SignatureHelpAssertions(signatureHelp);

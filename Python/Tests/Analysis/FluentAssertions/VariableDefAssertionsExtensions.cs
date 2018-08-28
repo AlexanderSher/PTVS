@@ -41,6 +41,11 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return andWhichConstraint;
         }
 
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> WithNoTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) {
+            andWhichConstraint.Which.Should().HaveNoTypes(because, reasonArgs);
+            return andWhichConstraint;
+        }
+
         public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfResolvedType<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, BuiltinTypeId typeId, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveResolvedType(typeId, because, reasonArgs);
             return andWhichConstraint;
@@ -64,6 +69,19 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveClassNames(classNames, because, reasonArgs);
+            return andWhichConstraint;
+        }
+        
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfResolvedType<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string className, string because = "", params object[] reasonArgs) {
+            andWhichConstraint.Which.Should().HaveResolvedClassName(className, because, reasonArgs);
+            return andWhichConstraint;
+        }
+
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfResolvedTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, params string[] classNames)
+            => andWhichConstraint.OfResolvedTypes(classNames, string.Empty);
+
+        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfResolvedTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, IEnumerable<string> classNames, string because = "", params object[] reasonArgs) {
+            andWhichConstraint.Which.Should().HaveResolvedClassNames(classNames, because, reasonArgs);
             return andWhichConstraint;
         }
 

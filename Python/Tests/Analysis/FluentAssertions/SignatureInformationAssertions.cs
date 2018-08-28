@@ -31,6 +31,17 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         protected override string Identifier => nameof(SignatureInformation);
 
+        public AndConstraint<SignatureInformationAssertions> HaveNoParameters(string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+
+            var count = Subject.parameters?.Length ?? 0;
+            Execute.Assertion.ForCondition(count == 0)
+                .BecauseOf(because, reasonArgs)
+                .FailWith($"Expected signature '{Subject.label}' to have no parameters{{reason}}, but it has {count} instead.");
+
+            return new AndConstraint<SignatureInformationAssertions>(this);
+        }
+
         public AndConstraint<SignatureInformationAssertions> OnlyHaveParameterLabels(params string[] labels)
             => OnlyHaveParameterLabels(labels, string.Empty);
 

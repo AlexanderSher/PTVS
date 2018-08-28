@@ -121,31 +121,31 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return new AndConstraint<TAssertions>((TAssertions)this);
         }
 
-        public AndWhichConstraint<TAssertions, OverloadResult> HaveOverloadCount(int count, string because = "", params object[] reasonArgs) {
+        public AndConstraint<TAssertions> HaveOverloadCount(int count, string because = "", params object[] reasonArgs) {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length == count)
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {GetName()} to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
-            return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[0]);
+            return new AndConstraint<TAssertions>((TAssertions)this);
         }
 
-        public AndWhichConstraint<TAssertions, OverloadResult> HaveSingleOverload(string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<TAssertions, OverloadResultTestInfo> HaveSingleOverload(string because = "", params object[] reasonArgs) {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length == 1)
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {GetName()} to have single overload{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
-            return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[0]);
+            return new AndWhichConstraint<TAssertions, OverloadResultTestInfo>((TAssertions)this, new OverloadResultTestInfo(overloads[0], GetOverloadName(overloads[0].Name)));
         }
 
-        public AndWhichConstraint<TAssertions, OverloadResult> HaveOverloadAt(int index, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<TAssertions, OverloadResultTestInfo> HaveOverloadAt(int index, string because = "", params object[] reasonArgs) {
             var overloads = Subject.Overloads.ToArray();
             Execute.Assertion.ForCondition(overloads.Length > index)
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected {GetName()} to have overload at index {index}{{reason}}, but it {GetOverloadsString(overloads.Length)}.");
 
-            return new AndWhichConstraint<TAssertions, OverloadResult>((TAssertions)this, overloads[index]);
+            return new AndWhichConstraint<TAssertions, OverloadResultTestInfo>((TAssertions)this, new OverloadResultTestInfo(overloads[index], GetOverloadName(overloads[index].Name)));
         }
 
         private static string GetOverloadsString(int overloadsCount)
@@ -200,7 +200,8 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             }
         }
 
-        protected virtual string GetName() 
-            => $"value {GetQuotedName(Subject)} {ScopeDescription}";
+        protected virtual string GetName() => $"{GetQuotedName(Subject)} {ScopeDescription}";
+
+        private string GetOverloadName(string overload) => $"'{overload}' overload {ScopeDescription}";
     }
 }

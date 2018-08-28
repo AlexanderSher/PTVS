@@ -14,25 +14,14 @@
 // See the Apache Version 2.0 License for specific language governing
 // permissions and limitations under the License.
 
-using System;
 using System.Diagnostics.CodeAnalysis;
-using FluentAssertions;
-using FluentAssertions.Execution;
 using Microsoft.PythonTools.Analysis.Values;
 
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
-    internal sealed class BuiltinInstanceInfoAssertions : AnalysisValueAssertions<BuiltinInstanceInfo, BuiltinInstanceInfoAssertions> {
-        public BuiltinInstanceInfoAssertions(AnalysisValueTestInfo<BuiltinInstanceInfo> subject) : base(subject) {}
+    internal sealed class SpecializedCallableAssertions : AnalysisValueAssertions<SpecializedCallable, SpecializedCallableAssertions> {
+        public SpecializedCallableAssertions(AnalysisValueTestInfo<SpecializedCallable> subject) : base(subject) {}
 
-        protected override string Identifier => nameof(BuiltinInstanceInfo);
-
-        public AndConstraint<BuiltinInstanceInfoAssertions> HaveClassName(string className, string because = "", params object[] reasonArgs) {
-            Execute.Assertion.ForCondition(string.Equals(Subject.ClassInfo.Name, className, StringComparison.Ordinal))
-                .BecauseOf(because, reasonArgs)
-                .FailWith($"Expected {GetName()} to have class name '{className}'{{reason}}");
-
-            return new AndConstraint<BuiltinInstanceInfoAssertions>(this);
-        }
+        protected override string Identifier => nameof(SpecializedCallable);
     }
 }

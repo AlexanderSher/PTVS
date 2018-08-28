@@ -29,12 +29,12 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
         protected override string Identifier => nameof(BoundBuiltinMethodInfo);
 
-        public AndWhichConstraint<BoundBuiltinMethodInfoAssertions, OverloadResult> HaveOverloadWithParametersAt(int index, string because = "", params object[] reasonArgs) {
+        public AndWhichConstraint<BoundBuiltinMethodInfoAssertions, OverloadResultTestInfo> HaveOverloadWithParametersAt(int index, string because = "", params object[] reasonArgs) {
             var constraint = HaveOverloadAt(index);
             var overload = constraint.Which;
             var function = Subject.Method.Function;
 
-            Execute.Assertion.ForCondition(overload.Parameters.Length > 0)
+            Execute.Assertion.ForCondition(overload.Value.Parameters.Length > 0)
                 .BecauseOf(because, reasonArgs)
                 .FailWith($"Expected overload {overload.Name} at index {index} of {function.DeclaringModule.Name}.{function.Name} to have parameters{{reason}}, but it has none.");
 

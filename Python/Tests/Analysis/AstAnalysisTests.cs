@@ -958,17 +958,17 @@ e2 = e.makeelement()
 iterfind = e.iterfind
 l = iterfind()");
                 var analysis = await server.GetAnalysisAsync(uri);
-                var elementSignatures = analysis.GetSignatures("ET.Element", SourceLocation.MinValue);
-                var makeelementSignatures = analysis.GetSignatures("e.makeelement", SourceLocation.MinValue);
-                var iterfindSignatures = analysis.GetSignatures("iterfind", SourceLocation.MinValue);
+                var elementSignatures = await server.SendSignatureHelp(uri, 2, 15);
+                var makeelementSignatures = await server.SendSignatureHelp(uri, 3, 19);
+                var iterfindSignatures = await server.SendSignatureHelp(uri, 5, 13);
 
                 analysis.Should().HaveVariable("l").OfTypes(BuiltinTypeId.List);
-                elementSignatures.Should().ContainSingle()
-                    .Which.Should().HaveParameters("tag", "attrib", "**extra");
-                makeelementSignatures.Should().ContainSingle()
-                    .Which.Should().HaveParameters("tag", "attrib");
-                iterfindSignatures.Should().ContainSingle()
-                    .Which.Should().HaveParameters("path", "namespaces");
+                elementSignatures.Should().HaveSingleSignature()
+                    .Which.Should().OnlyHaveParameterLabels("tag", "attrib", "**extra");
+                makeelementSignatures.Should().HaveSingleSignature()
+                    .Which.Should().OnlyHaveParameterLabels("tag", "attrib");
+                iterfindSignatures.Should().HaveSingleSignature()
+                    .Which.Should().OnlyHaveParameterLabels("path", "namespaces");
             }
         }
 

@@ -117,6 +117,30 @@ namespace Microsoft.PythonTools.Analysis {
             Python26,
             Python26_x64).First();
 
+        public static InterpreterConfiguration EarliestAvailable => EarliestAvailable2X ?? EarliestAvailable3X;
+
+        public static InterpreterConfiguration EarliestAvailable3X => GetVersions(
+            Python31,
+            Python31_x64,
+            Python32,
+            Python32_x64,
+            Python33,
+            Python33_x64,
+            Python34,
+            Python34_x64,
+            Python35,
+            Python35_x64,
+            Python36,
+            Python36_x64,
+            Python37,
+            Python37_x64).First();
+
+        public static InterpreterConfiguration EarliestAvailable2X => GetVersions(
+            Python26,
+            Python26_x64,
+            Python27,
+            Python27_x64).First();
+
         private static IEnumerable<InterpreterConfiguration> GetVersions(params InterpreterConfiguration[] configurations) => configurations.Where(v => v != null);
 
         private static InterpreterConfiguration GetCPythonVersion(PythonLanguageVersion version, InterpreterArchitecture arch) {            

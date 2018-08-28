@@ -103,6 +103,20 @@ namespace Microsoft.PythonTools.Analysis {
             });
         }
 
+        public static Task<Reference[]> SendFindReferences(this Server server, Uri uri, int line, int character, bool includeDeclaration = true) {
+            return server.FindReferences(new ReferencesParams {
+                textDocument = uri,
+                position = new Position {
+                    line = line,
+                    character = character
+                },
+                context = new ReferenceContext {
+                    includeDeclaration = includeDeclaration,
+                    _includeValues = true // For compatibility with PTVS
+                }
+            });
+        }
+
         public static async Task SendDidOpenTextDocument(this Server server, Uri uri, string content, string languageId = null) {
             await server.DidOpenTextDocument(new DidOpenTextDocumentParams {
                 textDocument = new TextDocumentItem {
