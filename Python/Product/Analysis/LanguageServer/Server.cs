@@ -105,7 +105,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         }
 
         internal PythonAnalyzer Analyzer { get; private set; }
-        internal LanguageServerSettings Settings { get; private set; } = new LanguageServerSettings();
+        internal ServerSettings Settings { get; private set; } = new ServerSettings();
         internal ProjectFiles ProjectFiles { get; } = new ProjectFiles();
 
         public void Dispose() {
@@ -127,33 +127,35 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         #region Client message handling
         public override Task<InitializeResult> Initialize(InitializeParams @params) => Initialize(@params, CancellationToken.None);
 
+        internal InitializeResult GetInitializeResult() => new InitializeResult {
+            capabilities = new ServerCapabilities {
+                textDocumentSync = new TextDocumentSyncOptions {
+                    openClose = true,
+                    change = TextDocumentSyncKind.Incremental
+                },
+                completionProvider = new CompletionOptions {
+                    triggerCharacters = new[] { "." }
+                },
+                hoverProvider = true,
+                signatureHelpProvider = new SignatureHelpOptions { triggerCharacters = new[] { "(,)" } },
+                definitionProvider = true,
+                referencesProvider = true,
+                workspaceSymbolProvider = true,
+                documentSymbolProvider = true,
+                executeCommandProvider = new ExecuteCommandOptions {
+                    commands = new[] {
+                            completionItemCommand
+                        }
+                }
+            }
+        };
+
         internal async Task<InitializeResult> Initialize(InitializeParams @params, CancellationToken cancellationToken) {
             ThrowIfDisposed();
             await DoInitializeAsync(@params, cancellationToken);
-
-            return new InitializeResult {
-                capabilities = new ServerCapabilities {
-                    textDocumentSync = new TextDocumentSyncOptions {
-                        openClose = true,
-                        change = TextDocumentSyncKind.Incremental
-                    },
-                    completionProvider = new CompletionOptions {
-                        triggerCharacters = new[] { "." }
-                    },
-                    hoverProvider = true,
-                    signatureHelpProvider = new SignatureHelpOptions { triggerCharacters = new[] { "(,)" } },
-                    definitionProvider = true,
-                    referencesProvider = true,
-                    workspaceSymbolProvider = true,
-                    documentSymbolProvider = true,
-                    executeCommandProvider = new ExecuteCommandOptions {
-                        commands = new[] {
-                            completionItemCommand
-                        }
-                    }
-                }
-            };
+            return GetInitializeResult();
         }
+
         public override Task Shutdown() {
             ThrowIfDisposed();
             ProjectFiles.Clear();
@@ -171,6 +173,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
                 if (@params.textDocument.text != null) {
                     doc.ResetDocument(@params.textDocument.version, @params.textDocument.text);
                 }
+                EnqueueItem(doc);
             } else if (entry == null) {
                 IAnalysisCookie cookie = null;
                 if (@params.textDocument.text != null) {
@@ -180,10 +183,6 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
                     };
                 }
                 entry = await AddFileAsync(@params.textDocument.uri, null, cookie);
-            }
-
-            if ((doc = entry as IDocument) != null) {
-                EnqueueItem(doc);
             }
         }
 
@@ -241,14 +240,15 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
 
         internal async Task DidChangeConfiguration(DidChangeConfigurationParams @params, CancellationToken cancellationToken) {
             ThrowIfDisposed();
+
             if (Analyzer == null) {
-                LogMessage(MessageType.Error, "change configuration notification sent to uninitialized server");
+                LogMessage(MessageType.Error, "Change configuration notification sent to uninitialized server");
                 return;
             }
 
             var reanalyze = true;
             if (@params.settings != null) {
-                if (@params.settings is LanguageServerSettings settings) {
+                if (@params.settings is ServerSettings settings) {
                     reanalyze = HandleConfigurationChanges(settings);
                 } else {
                     LogMessage(MessageType.Error, "change configuration notification sent unsupported settings");
@@ -262,7 +262,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         }
 
         public override async Task ReloadModulesAsync(CancellationToken token) {
-            LogMessage(MessageType.Info, "Reloading modules...");
+            LogMessage(MessageType._General, "Reloading modules...");
 
             // Make sure reload modules is executed on the analyzer thread.
             var task = _reloadModulesQueueItem.Task;
@@ -373,9 +373,9 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
             _displayTextBuilder = DocumentationBuilder.Create(DisplayOptions);
 
             if (string.IsNullOrEmpty(Analyzer.InterpreterFactory?.Configuration?.InterpreterPath)) {
-                LogMessage(MessageType.Log, "Initializing for generic interpreter");
+                LogMessage(MessageType._General, "Initializing for generic interpreter");
             } else {
-                LogMessage(MessageType.Log, $"Initializing for {Analyzer.InterpreterFactory.Configuration.InterpreterPath}");
+                LogMessage(MessageType._General, $"Initializing for {Analyzer.InterpreterFactory.Configuration.InterpreterPath}");
             }
 
             if (@params.rootUri != null) {
@@ -574,7 +574,6 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
                     entry.ResetCompleteAnalysis();
                 }
 
-                AnalysisQueued(doc.DocumentUri);
                 // The call must be fire and forget, but should not be yielding.
                 // It is called from DidChangeTextDocument which must fully finish
                 // since otherwise Complete() may come before the change is enqueued
@@ -596,7 +595,10 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
         }
 
         private void OnDocumentChangeProcessingComplete(IDocument doc, VersionCookie vc, bool enqueueForAnalysis, AnalysisPriority priority, IDisposable disposeWhenEnqueued) {
-            ThrowIfDisposed();
+            if (_disposed) {
+                return;
+            }
+
             try {
                 if (vc != null) {
                     foreach (var kv in vc.GetAllParts(doc.DocumentUri)) {
@@ -607,7 +609,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
                 }
 
                 if (doc is IAnalyzable analyzable && enqueueForAnalysis) {
-                    TraceMessage($"Enqueing document {doc.DocumentUri} for analysis");
+                    AnalysisQueued(doc.DocumentUri);
                     _queue.Enqueue(analyzable, priority);
                 }
 
@@ -664,9 +666,11 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
             return tree;
         }
 
-        private bool HandleConfigurationChanges(LanguageServerSettings newSettings) {
+        private bool HandleConfigurationChanges(ServerSettings newSettings) {
             var oldSettings = Settings;
             Settings = newSettings;
+
+            _symbolHierarchyDepthLimit = Settings.analysis.symbolsHierarchyDepthLimit;
 
             if (oldSettings == null) {
                 return true;
@@ -683,6 +687,7 @@ namespace Microsoft.PythonTools.Analysis.LanguageServer {
                 !newSettings.analysis.disabled.SetEquals(oldSettings.analysis.disabled)) {
                 _editorFiles.UpdateDiagnostics();
             }
+
             return false;
         }
 

@@ -23,11 +23,6 @@ using Microsoft.PythonTools.Interpreter;
 namespace Microsoft.PythonTools.Analysis.FluentAssertions {
     [ExcludeFromCodeCoverage]
     internal static class VariableDefAssertionsExtensions {
-        public static AndWhichConstraint<TAssertion, VariableDefTestInfo> WithoutTypes<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, string because = "", params object[] reasonArgs) {
-            andWhichConstraint.Which.Should().HaveTypes(Enumerable.Empty<BuiltinTypeId>(), because, reasonArgs);
-            return andWhichConstraint;
-        }
-
         public static AndWhichConstraint<TAssertion, VariableDefTestInfo> OfType<TAssertion>(this AndWhichConstraint<TAssertion, VariableDefTestInfo> andWhichConstraint, BuiltinTypeId typeId, string because = "", params object[] reasonArgs) {
             andWhichConstraint.Which.Should().HaveType(typeId, because, reasonArgs);
             return andWhichConstraint;

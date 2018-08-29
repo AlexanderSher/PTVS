@@ -16,10 +16,14 @@
 
 using System;
 using System.IO;
+using System.Reflection;
+using System.Threading;
 using Microsoft.Python.Tests.Utilities;
 
 namespace TestUtilities {
     public static class TestData {
+        private static readonly AsyncLocal<TestRunScope> TestRunScopeAsyncLocal = new AsyncLocal<TestRunScope>();
+
         private static string GetRootDir() {
             var dir = PathUtils.GetParent((typeof(TestData)).Assembly.Location);
             while (!string.IsNullOrEmpty(dir) &&
@@ -55,8 +59,17 @@ namespace TestUtilities {
             throw new InvalidOperationException("Failed to find test data");
         }
 
-        private static readonly Lazy<string> _root = new Lazy<string>(CalculateTestDataRoot);
-        public static string Root => _root.Value;
+        private static readonly Lazy<string> RootLazy = new Lazy<string>(CalculateTestDataRoot);
+        public static string Root => RootLazy.Value;
+
+        public static Uri GetDefaultModuleUri() => new Uri(GetDefaultModulePath());
+        public static Uri GetNextModuleUri() => new Uri(GetNextModulePath());
+
+        public static string GetTestSpecificPath(string relativePath) => TestRunScopeAsyncLocal.Value.GetTestSpecificPath(relativePath);
+        public static string GetDefaultModulePath() => TestRunScopeAsyncLocal.Value.GetDefaultModulePath();
+        public static string GetNextModulePath() => TestRunScopeAsyncLocal.Value.GetNextModulePath();
+        public static string GetAstAnalysisCachePath(Version version, bool testSpecific = false) 
+            => testSpecific ? TestRunScopeAsyncLocal.Value.GetTestSpecificPath($"AstAnalysisCache{version}") : GetTempPath($"AstAnalysisCache{version}");
 
         /// <summary>
         /// Returns the full path to the deployed file.
@@ -69,24 +82,21 @@ namespace TestUtilities {
             return res;
         }
 
-        private static string CalculateTempRoot() {
+        private static string CalculateTestOutputRoot() {
             var path = Environment.GetEnvironmentVariable("_TESTDATA_TEMP_PATH");
             
             if (string.IsNullOrEmpty(path)) {
-                path = Path.GetTempPath();
-                var subpath = Path.Combine(path, Path.GetRandomFileName());
-                while (Directory.Exists(subpath) || File.Exists(subpath)) {
-                    subpath = Path.Combine(path, Path.GetRandomFileName());
-                }
-                path = subpath;
+                path = Path.Combine(GetRootDir(), "TestResults", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
             }
+
             if (!Directory.Exists(path)) {
                 Directory.CreateDirectory(path);
             }
+
             return path;
         }
 
-        private static readonly Lazy<string> _tempRoot = new Lazy<string>(CalculateTempRoot);
+        private static readonly Lazy<string> TestOutputRootLazy = new Lazy<string>(CalculateTestOutputRoot);
 
         /// <summary>
         /// Returns the full path to a temporary directory. This is within the
@@ -97,7 +107,7 @@ namespace TestUtilities {
         /// a randomly generated name will be used.
         /// </param>
         public static string GetTempPath(string subPath = null) {
-            var path = _tempRoot.Value;
+            var path = TestOutputRootLazy.Value;
             if (string.IsNullOrEmpty(subPath)) {
                 subPath = Path.GetRandomFileName();
                 while (Directory.Exists(Path.Combine(path, subPath))) {
@@ -114,6 +124,31 @@ namespace TestUtilities {
 
         public static Uri GetTempPathUri(string fileName)
             => new Uri(Path.Combine(GetTempPath(), fileName));
+
+        internal static void SetTestRunScope(string testFullName) {
+            var testDirectoryName = testFullName ?? Path.GetRandomFileName();
+            var path = Path.Combine(TestOutputRootLazy.Value, testDirectoryName);
+
+            Directory.CreateDirectory(path);
+            TestRunScopeAsyncLocal.Value = new TestRunScope(path);
+        }
+
+        internal static void ClearTestRunScope() {
+            TestRunScopeAsyncLocal.Value = null;
+        }
+    }
+
+    internal class TestRunScope {
+        private readonly string _root;
+        private int _moduleCounter;
+
+        public TestRunScope(string root) {
+            _root = root;
+        }
+
+        public string GetDefaultModulePath() => GetTestSpecificPath($"module.py");
+        public string GetNextModulePath() => GetTestSpecificPath($"module{++_moduleCounter}.py");
+        public string GetTestSpecificPath(string relativePath) => Path.Combine(_root, relativePath);
     }
 }
 

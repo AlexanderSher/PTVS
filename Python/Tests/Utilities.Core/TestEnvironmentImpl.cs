@@ -16,6 +16,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,7 +25,7 @@ namespace TestUtilities {
         protected internal static TestEnvironmentImpl Instance { get; protected set; }
 
         public static TimeSpan Elapsed() => Instance?._stopwatch.Value?.Elapsed ?? new TimeSpan();
-        public static void TestInitialize(int secondsTimeout = 10) => Instance?.BeforeTestRun(secondsTimeout);
+        public static void TestInitialize(string testFullName, int secondsTimeout = 10) => Instance?.BeforeTestRun(testFullName, secondsTimeout);
         public static void TestCleanup() => Instance?.AfterTestRun();
 
         private readonly AsyncLocal<TaskObserver> _taskObserver = new AsyncLocal<TaskObserver>();
@@ -32,7 +33,7 @@ namespace TestUtilities {
         private readonly AssemblyLoader _assemblyLoader = new AssemblyLoader();
 
         public TestEnvironmentImpl AddAssemblyResolvePaths(params string[] paths) {
-            _assemblyLoader.AddPaths(paths);
+            _assemblyLoader.AddPaths(paths.Where(n => !string.IsNullOrEmpty(n)).ToArray());
             return this;
         }
 
@@ -45,7 +46,7 @@ namespace TestUtilities {
             return true;
         }
         
-        protected virtual void BeforeTestRun(int secondsTimeout) {
+        protected virtual void BeforeTestRun(string testFullName, int secondsTimeout) {
             if (_taskObserver.Value != null) {
                 throw new InvalidOperationException("AsyncLocal<TaskObserver> reentrancy");
             }
@@ -57,12 +58,14 @@ namespace TestUtilities {
             _taskObserver.Value = new TaskObserver(secondsTimeout);
             _stopwatch.Value = new Stopwatch();
             _stopwatch.Value.Start();
+            TestData.SetTestRunScope(testFullName);
         }
 
         protected virtual void AfterTestRun() {
             try {
                 _taskObserver.Value?.WaitForObservedTask();
                 _stopwatch.Value?.Stop();
+                TestData.ClearTestRunScope();
             } finally {
                 _stopwatch.Value = null;
                 _taskObserver.Value = null;

@@ -32,7 +32,7 @@ namespace Microsoft.PythonTools.Analysis {
             server.OnLogMessage += Server_OnLogMessage;
             var properties = new InterpreterFactoryCreationOptions {
                 TraceLevel = System.Diagnostics.TraceLevel.Verbose,
-                DatabasePath = TestData.GetTempPath($"AstAnalysisCache{configuration.Version}")
+                DatabasePath = TestData.GetAstAnalysisCachePath(configuration.Version)
             }.ToDictionary();
 
             configuration.WriteToDictionary(properties);
@@ -58,8 +58,8 @@ namespace Microsoft.PythonTools.Analysis {
             return server;
         }
 
-        public static Task<ModuleAnalysis> GetAnalysisAsync(this Server server, Uri uri, int waitingTimeout = -1, CancellationToken cancellationToken = default(CancellationToken))
-            => ((ProjectEntry)server.ProjectFiles.GetEntry(uri)).GetAnalysisAsync(waitingTimeout, cancellationToken);
+        public static Task<ModuleAnalysis> GetAnalysisAsync(this Server server, Uri uri, int waitingTimeout = -1, int failAfter = 30000)
+            => ((ProjectEntry)server.ProjectFiles.GetEntry(uri)).GetAnalysisAsync(waitingTimeout, new CancellationTokenSource(failAfter).Token);
 
         public static void EnqueueItem(this Server server, Uri uri) 
             => server.EnqueueItem((IDocument)server.ProjectFiles.GetEntry(uri));
@@ -70,12 +70,9 @@ namespace Microsoft.PythonTools.Analysis {
             }
         }
 
-        // TODO: Replace usages of AddModuleWithContent with SendDidOpenTextDocument
-        public static ProjectEntry AddModuleWithContent(this Server server, string content)
-            => server.AddModuleWithContent("test-module", "test-module.py", content);
-
+        // TODO: Replace usages of AddModuleWithContent with OpenDefaultDocumentAndGetUriAsync
         public static ProjectEntry AddModuleWithContent(this Server server, string moduleName, string relativePath, string content) {
-            var entry = (ProjectEntry)server.Analyzer.AddModule(moduleName, TestData.GetTempPathUri(relativePath).AbsolutePath);
+            var entry = (ProjectEntry)server.Analyzer.AddModule(moduleName, TestData.GetTestSpecificPath(relativePath));
             entry.ResetDocument(0, content);
             server.EnqueueItem(entry);
             return entry;
@@ -117,6 +114,12 @@ namespace Microsoft.PythonTools.Analysis {
             });
         }
 
+        public static async Task<Uri> OpenDefaultDocumentAndGetUriAsync(this Server server, string content) {
+            var uri = TestData.GetDefaultModuleUri();
+            await server.SendDidOpenTextDocument(uri, content);
+            return uri;
+        }
+
         public static async Task SendDidOpenTextDocument(this Server server, Uri uri, string content, string languageId = null) {
             await server.DidOpenTextDocument(new DidOpenTextDocumentParams {
                 textDocument = new TextDocumentItem {
@@ -127,9 +130,9 @@ namespace Microsoft.PythonTools.Analysis {
             });
         }
 
-        public static async Task<ModuleAnalysis> SendDidOpenTextDocumentAndGetAnalysisAsync(this Server server, string content, int failAfter = 30000, string languageId = null) {
+        public static async Task<ModuleAnalysis> OpenDefaultDocumentAndGetAnalysisAsync(this Server server, string content, int failAfter = 30000, string languageId = null) {
             var cancellationToken = new CancellationTokenSource(failAfter).Token;
-            await server.SendDidOpenTextDocument(TestData.GetTempPathUri("test_module.py"), content, languageId);
+            await server.SendDidOpenTextDocument(TestData.GetDefaultModuleUri(), content, languageId);
             cancellationToken.ThrowIfCancellationRequested();
             var projectEntry = (ProjectEntry) server.ProjectFiles.All.Single();
             return await projectEntry.GetAnalysisAsync(cancellationToken: cancellationToken);
@@ -148,7 +151,7 @@ namespace Microsoft.PythonTools.Analysis {
             });
         }
 
-        public static async Task<ModuleAnalysis> SendDidChangeTextDocumentAndGetAnalysisAsync(this Server server, string text, int failAfter = 30000) {
+        public static async Task<ModuleAnalysis> ChangeDefaultDocumentAndGetAnalysisAsync(this Server server, string text, int failAfter = 30000) {
             var projectEntry = (ProjectEntry) server.ProjectFiles.All.Single();
             server.SendDidChangeTextDocument(projectEntry.DocumentUri, text);
             return await projectEntry.GetAnalysisAsync(cancellationToken: new CancellationTokenSource(failAfter).Token);

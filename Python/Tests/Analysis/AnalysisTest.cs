@@ -42,9 +42,11 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public partial class AnalysisTest {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
         public void TestInitialize() {
-            TestEnvironmentImpl.TestInitialize();
+            TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
         }
 
         [TestCleanup]
@@ -83,13 +85,10 @@ namespace AnalysisTests {
         [TestMethod, Priority(0)]
         public async Task SpecialArgTypes() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-
                 var code = @"def f(*fob, **oar):
     pass
 ";
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveFunction("f")
                     .Which.Should()
@@ -101,8 +100,7 @@ namespace AnalysisTests {
 
 f(42)
 ";
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
@@ -113,8 +111,7 @@ f(42)
 
 f(42, 'abc')
 ";
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
                     .Which.Should().HaveIndexTypes(0, BuiltinTypeId.Int, BuiltinTypeId.Str);
@@ -125,8 +122,7 @@ f(42, 'abc')
 f(42, 'abc')
 f('abc', 42)
 ";
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveFunction("f")
                     .Which.Should().HaveParameter("fob").OfType(BuiltinTypeId.Tuple).WithValue<SequenceInfo>()
                     .Which.Should().HaveIndexTypes(0, BuiltinTypeId.Int, BuiltinTypeId.Str);
@@ -137,8 +133,7 @@ f('abc', 42)
 
 f(x=42)
 ";
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveFunction("f")
                     .Which.Should()
@@ -152,8 +147,8 @@ f(x=42)
 
 f(x=42, y = 'abc')
 ";
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveFunction("f")
                     .Which.Should()
                         .HaveVariable("z").OfResolvedTypes(BuiltinTypeId.Int, BuiltinTypeId.Str)
@@ -195,7 +190,7 @@ class B:
     x = 3.1415
     x = x
 ";
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
 
@@ -227,7 +222,7 @@ def f():
 
 y = f()
 ";
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfTypes(BuiltinTypeId.Int)
@@ -252,7 +247,7 @@ y = f()
 slice = array.array('b', b'abcdef')[2:3]
 add = array.array('b', b'abcdef') + array.array('b', b'fob')
 ";
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("slice").OfType("array")
                     .And.HaveVariable("add").OfType("array");
@@ -269,7 +264,7 @@ y = f(1, 'abc')
 z = f(None, 'abc', 1)
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str)
                     .And.HaveVariable("z").OfTypes(BuiltinTypeId.Str, BuiltinTypeId.Int);
@@ -287,7 +282,7 @@ z = f(a='b', b='abc')
 w = f(a='p', p=1, q='abc')
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Float)
                     .And.HaveVariable("z").OfTypes(BuiltinTypeId.Str)
@@ -308,7 +303,7 @@ def f(x):
 
             // If we complete processing then we have succeeded
             using (var server = await CreateServerAsync(PythonVersions.Required_Python32X)) {
-                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
             }
         }
 
@@ -321,7 +316,6 @@ def f(x):
             // exists solely for receiving arguments.
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
                 var code = @"def f(a, **args):
     args['fob'] = a
     return args['fob']
@@ -330,8 +324,7 @@ def f(x):
 x = f(42)
 y = f('abc')";
 
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
 
@@ -346,8 +339,7 @@ y = f('abc')";
 x = f(42)
 y = f('abc')";
 
-                server.SendDidChangeTextDocument(uri, code);
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -363,7 +355,7 @@ y = f('abc')";
 x = f(42)";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int);
             }
         }
@@ -378,7 +370,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -396,7 +388,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -414,7 +406,7 @@ x = f(42)
 y = f('fob')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -434,7 +426,7 @@ b = list_fact(str)[0]
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Str);
             }
@@ -455,7 +447,7 @@ x = f(42, 'oar')
 y = f('fob', 'oar')";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.Str);
             }
@@ -492,10 +484,7 @@ y = f('fob', 'oar')";
         [TestMethod, Priority(0)]
         public async Task ImportAs() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-
-                await server.SendDidOpenTextDocument(uri, @"import sys as s, array as a");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"import sys as s, array as a");
 
                 analysis.Should().HavePythonModuleVariable("s")
                     .Which.Should().HaveMember<AstPythonStringLiteral>("winver");
@@ -503,8 +492,7 @@ y = f('fob', 'oar')";
                 analysis.Should().HavePythonModuleVariable("a")
                     .Which.Should().HaveMember<AstPythonConstant>("ArrayType");
 
-                server.SendDidChangeTextDocument(uri, @"import sys as s");
-                analysis = await server.GetAnalysisAsync(uri);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"import sys as s");
 
                 analysis.Should().HavePythonModuleVariable("s")
                     .Which.Should().HaveMember<AstPythonStringLiteral>("winver");
@@ -519,7 +507,7 @@ i = x['abc']
 s = x['oar']
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("i").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("s").OfType(BuiltinTypeId.Str);
             }
@@ -540,7 +528,7 @@ x2 = f(x)
 y2 = f(y)
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List)
                     .And.HaveVariable("y").OfType(BuiltinTypeId.List)
                     .And.HaveVariable("x2").OfType(BuiltinTypeId.List)
@@ -620,7 +608,7 @@ a.original()
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("x1").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveVariable("y1").OfResolvedType(BuiltinTypeId.Int)
                     .And.HaveVariable("_1").OfResolvedTypes(BuiltinTypeId.Tuple, BuiltinTypeId.NoneType)
@@ -648,7 +636,7 @@ y = x[0]
             // Completing analysis is the main test, but we'll also ensure that
             // the right types are in the list.
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("y").OfTypes(BuiltinTypeId.List, BuiltinTypeId.Int, BuiltinTypeId.Float, BuiltinTypeId.Str);
             }
         }
@@ -666,7 +654,7 @@ y = x[0]
 x = a()
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveFunction("a")
                     .Which.Should().HaveReturnValue().OfType(BuiltinTypeId.Tuple);
@@ -676,14 +664,14 @@ x = a()
         [TestMethod, Priority(0)]
         public async Task ImportStar() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 from nt import *
             ");
                 analysis.Should().HaveVariable("abort");
 
                 // make sure abort hasn't become a builtin, if so this test needs to be updated
                 // with a new name
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"");
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"");
                 analysis.Should().NotHaveVariable("abort");
             }
         }
@@ -691,7 +679,7 @@ from nt import *
         [TestMethod, Priority(0)]
         public async Task ImportTrailingComma() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 import nt,
             ");
                 analysis.Should().HavePythonModuleVariable("nt")
@@ -992,7 +980,7 @@ class D(C):
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveClass("D").WithFunction("__init__")
                     .Which.Should().HaveParameter("self").WithValue<InstanceInfo>()
@@ -1252,7 +1240,7 @@ c = next(iC)
         [TestMethod, Priority(0)]
         public async Task Generator2X() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     yield 2
@@ -1269,9 +1257,9 @@ d = a.__next__()
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
-                    .And.HaveVariable("d").WithoutTypes();
+                    .And.HaveVariable("d").WithNoTypes();
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield x
 
@@ -1289,10 +1277,10 @@ d = a1.__next__()
                     .And.HaveVariable("b1").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("a2").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b2").OfType(BuiltinTypeId.Str)
-                    .And.HaveVariable("c").WithoutTypes()
-                    .And.HaveVariable("d").WithoutTypes();
+                    .And.HaveVariable("c").WithNoTypes()
+                    .And.HaveVariable("d").WithNoTypes();
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     x = yield 2
@@ -1304,14 +1292,14 @@ d = a.__next__()");
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
-                    .And.HaveVariable("d").WithoutTypes();
+                    .And.HaveVariable("d").WithNoTypes();
             }
         }
 
         [TestMethod, Priority(0)]
         public async Task Generator3X() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     yield 2
@@ -1328,9 +1316,9 @@ d = a.next()");
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
-                    .And.HaveVariable("d").WithoutTypes();
+                    .And.HaveVariable("d").WithNoTypes();
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield x
 
@@ -1348,9 +1336,9 @@ d = a1.next()");
                     .And.HaveVariable("a2").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b2").OfType(BuiltinTypeId.Str)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
-                    .And.HaveVariable("d").WithoutTypes();
+                    .And.HaveVariable("d").WithNoTypes();
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def f():
     yield 1
     x = yield 2
@@ -1362,7 +1350,7 @@ d = a.next()");
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Int)
-                    .And.HaveVariable("d").WithoutTypes()
+                    .And.HaveVariable("d").WithNoTypes()
                     .And.HaveFunction("f")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
             }
@@ -1396,7 +1384,7 @@ d = a.next()");
             //            entry.AssertIsInstance("x", text.IndexOf("x ="), BuiltinTypeId.Float);
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 def f(x):
     yield from x
 
@@ -1411,7 +1399,7 @@ b = a.__next__()
                     .And.HaveVariable("b").OfType(BuiltinTypeId.Int);
                     //.And.HaveVariable("c").OfType(BuiltinTypeId.Int);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     x = yield 2
@@ -1430,7 +1418,7 @@ c = a.send('abc')
                     .And.HaveFunction("g")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     return 'abc'
@@ -1447,7 +1435,7 @@ b = a.__next__()
                     .And.HaveFunction("f")
                     .Which.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 def g():
     yield 1
     return 'abc', 1.5
@@ -1506,17 +1494,17 @@ def f(abc):
             var text = "x = [(lambda a:[a**i for i in range(a+1)])(j) for j in range(5)]";
 
             using (var server = await CreateServerAsync(PythonVersions.Required_Python27X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
             }
 
             using (var server = await CreateServerAsync(PythonVersions.Required_Python31X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
             }
 
             using (var server = await CreateServerAsync(PythonVersions.Required_Python33X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.List);
             }
         }
@@ -1534,11 +1522,11 @@ list(x for x in range(10) if x % 2 if x % 3)
 list(x for x, in [(7,), (8,), (9,)])
 ";
             using (var server = await CreateServerAsync(PythonVersions.Required_Python27X)) {
-                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
             }
 
             using (var server = await CreateServerAsync(PythonVersions.Required_Python32X)) {
-                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
             }
         }
 
@@ -1582,7 +1570,7 @@ class C:
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
                 var uri = TestData.GetTempPathUri("test_module.py");
-                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 var references = await server.SendFindReferences(uri, 6, 14);
 
                 references.Should().HaveCount(4)
@@ -1603,7 +1591,7 @@ for z in y:
     print z
 ";
 
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("z").OfResolvedType(BuiltinTypeId.Int);
 
                 text = @"
@@ -1616,7 +1604,7 @@ def f(iterable):
 
 f(y)
 ";
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveFunction("f")
                     .Which.Should().HaveVariable("z").OfType(BuiltinTypeId.Int);
 
@@ -1632,7 +1620,7 @@ def f(iterable):
 
 y = f(i for i in x)
 ";
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("y").OfTypes(BuiltinTypeId.Bool, BuiltinTypeId.NoneType);
 
                 text = @"
@@ -1641,7 +1629,7 @@ def f(abc):
 
 (f(x) for x in [2,3,4])
 ";
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(text);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(text);
                 var projectEntry = (IPythonProjectEntry)server.ProjectFiles.All.Single();
                 var references = await server.SendFindReferences(projectEntry.DocumentUri, 1, 5);
 
@@ -1659,7 +1647,7 @@ def f(abc):
         [TestMethod, Priority(0)]
         public async Task ForSequence() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = [('abc', 42, True), ('abc', 23, False),]
 for some_str, some_int, some_bool in x:
     print some_str
@@ -1675,7 +1663,7 @@ for some_str, some_int, some_bool in x:
         [TestMethod, Priority(0)]
         public async Task ForIterator() {
             using (var server = await CreateServerAsync(PythonVersions.Required_Python34X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class X(object):
     def __iter__(self): return self
     def __next__(self): return 123
@@ -1693,7 +1681,7 @@ for i in Y():
         [TestMethod, Priority(0)]
         public async Task DynamicAttributes() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class x(object):
     def __getattr__(self, name):
         return 42
@@ -1718,7 +1706,7 @@ c = y().abc
         [TestMethod, Priority(0)]
         public async Task GetAttr() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class x(object):
     def __init__(self, value):
         self.value = value
@@ -1737,7 +1725,7 @@ d = getattr(a, 'value', 'fob')
         [TestMethod, Priority(0)]
         public async Task SetAttr() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class X(object):
     pass
 x = X()
@@ -1756,7 +1744,7 @@ b = x.b
         [TestMethod, Priority(0)]
         public async Task NoGetAttrForSlots() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"class A(object):
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"class A(object):
     def __getattr__(self, key):
         return f
 
@@ -1777,7 +1765,7 @@ a.__call__(None, 123)
         [TestMethod, Priority(0)]
         public async Task VarsSpecialization() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = vars()
 k = x.keys()[0]
 v = x['a']
@@ -1792,7 +1780,7 @@ v = x['a']
         [TestMethod, Priority(0)]
         public async Task DirSpecialization() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = dir()
 v = x[0]
 ");
@@ -1804,7 +1792,7 @@ v = x[0]
         [TestMethod, Priority(0)]
         public async Task BuiltinSpecializations() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 expect_int = abs(1)
 expect_float = abs(2.3)
 expect_object = abs(object())
@@ -1866,35 +1854,35 @@ expect_object = vars()['']
         [TestMethod, Priority(0)]
         public async Task ListAppend() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = []
 x.append('abc')
 y = x[0]
 ");
                 analysis.Should().HaveVariable("y").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 x = []
 x.extend(('abc', ))
 y = x[0]
 ");
                 analysis.Should().HaveVariable("y").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 x = []
 x.insert(0, 'abc')
 y = x[0]
 ");
                 analysis.Should().HaveVariable("y").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 x = []
 x.append('abc')
 y = x.pop()
 ");
                 analysis.Should().HaveVariable("y").OfType(BuiltinTypeId.Str);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 class ListTest(object):
     def reset(self):
         self.items = []
@@ -1912,21 +1900,21 @@ b = a[0]");
         [TestMethod, Priority(0)]
         public async Task Slicing() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = [2]
 y = x[:-1]
 z = y[0]
 ");
                 analysis.Should().HaveVariable("z").OfType(BuiltinTypeId.Int);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 x = (2, 3, 4)
 y = x[:-1]
 z = y[0]
 ");
                 analysis.Should().HaveVariable("z").OfType(BuiltinTypeId.Int);
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 lit = 'abc'
 inst = str.lower()
 
@@ -1945,7 +1933,7 @@ iinst = inst[1]
         [TestMethod, Priority(0)]
         public async Task ConstantIndex() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 ZERO = 0
 ONE = 1
 TWO = 2
@@ -1965,7 +1953,7 @@ some_bool = x[TWO]
         [TestMethod, Priority(0)]
         public async Task CtorSignatures() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class C: pass
 
 class D(object): pass
@@ -2036,7 +2024,7 @@ a.count(");
         [TestMethod, Priority(0)]
         public async Task DocStrings() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 def f():
     '''func doc'''
 
@@ -2123,7 +2111,7 @@ class CInheritedInit(CNewStyleInit):
         [TestMethod, Priority(0)]
         public async Task Ellipsis() {
             using (var server = await CreateServerAsync(PythonVersions.EarliestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = ...
             ");
 
@@ -2134,7 +2122,7 @@ x = ...
         [TestMethod, Priority(0)]
         public async Task Backquote() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"x = `42`");
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"x = `42`");
                 analysis.Should().HaveVariable("x").OfType(BuiltinTypeId.Str);
             }
         }
@@ -2142,7 +2130,7 @@ x = ...
         [TestMethod, Priority(0)]
         public async Task BuiltinMethodSignatures() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 const = """".capitalize
 constructed = str().capitalize
 ");
@@ -2154,7 +2142,7 @@ constructed = str().capitalize
                     .Which.Should().HaveSingleOverload()
                     .Which.Should().HaveNoParameters();
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(@"
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(@"
 const = [].append
 constructed = list().append
 ");
@@ -2171,7 +2159,7 @@ constructed = list().append
         [TestMethod, Priority(0)]
         public async Task Del() {
             using (var server = await CreateServerAsync()) {
-                await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 del fob
 del fob[2]
 del fob.oar
@@ -2186,7 +2174,7 @@ del fob, oar
         [TestMethod, Priority(0)]
         public async Task TryExcept() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class MyException(Exception): pass
 
 def f():
@@ -2212,7 +2200,7 @@ def g():
         [TestMethod, Priority(0)]
         public async Task ConstantMath() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 a = 1. + 2. + 3. # no type info for a, b or c
 b = 1 + 2. + 3.
 c = 1. + 2 + 3.
@@ -2229,7 +2217,7 @@ f = 1 / 2 # f is 'int', should be 'float' under v3.x");
             }
             
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 a = 1. + 2. + 3. # no type info for a, b or c
 b = 1 + 2. + 3.
 c = 1. + 2 + 3.
@@ -2247,7 +2235,7 @@ f = 1 / 2 # f is 'int', should be 'float' under v3.x");
         [TestMethod, Priority(0)]
         public async Task StringConcatenation() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = u'abc'
 y = x + u'dEf'
 
@@ -2271,7 +2259,7 @@ oar2 = fob2 + u'ef'");
         [TestMethod, Priority(0)]
         public async Task StringFormatting() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = u'abc %d'
 y = x % (42, )
 
@@ -2295,7 +2283,7 @@ oar2 = fob2 % (42, )");
         [TestMethod, Priority(0)]
         public async Task StringFormattingV36() {
             using (var server = await CreateServerAsync(PythonVersions.Required_Python36X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 y = f'abc {42}'
 ry = rf'abc {42}'
 yr = fr'abc {42}'
@@ -2317,7 +2305,7 @@ f'abc {f(42)}'
         [TestMethod, Priority(0)]
         public async Task StringMultiply() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = u'abc %d'
 y = x * 100
 
@@ -2341,7 +2329,7 @@ oar2 = fob2 * 100");
         [TestMethod, Priority(0)]
         public async Task StringMultiply_2() {
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 x = u'abc %d'
 y = 100 * x
 
@@ -2376,12 +2364,12 @@ a = not C()
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Bool);
             }
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable3X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("a").OfType(BuiltinTypeId.Bool);
             }
         }
@@ -2389,7 +2377,7 @@ a = not C()
         [TestMethod, Priority(0)]
         public async Task UnaryOperatorPlus() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class Result(object):
     pass
 
@@ -2408,7 +2396,7 @@ b = ++C()
         [TestMethod, Priority(0)]
         public async Task UnaryOperatorMinus() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class Result(object):
     pass
 
@@ -2427,7 +2415,7 @@ b = --C()
         [TestMethod, Priority(0)]
         public async Task UnaryOperatorTilde() {
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"
 class Result(object):
     pass
 
@@ -2459,7 +2447,7 @@ c = 'abc' / a
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.Required_Python35X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("b").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("c").OfType(BuiltinTypeId.Float);
             }
@@ -2521,7 +2509,7 @@ m {1}= m
                 }
 
                 using (var server = await CreateServerAsync(test.Version)) {
-                    var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                    var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                     analysis.Should().HaveVariable("a").OfType("ForwardResult")
                     .And.HaveVariable("b").OfType("ReverseResult")
                     .And.HaveVariable("c").OfType("ReverseResult")
@@ -2557,7 +2545,7 @@ y3v = y3[0]
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("x1").OfType(BuiltinTypeId.Tuple)
                     .And.HaveVariable("y1").OfType(BuiltinTypeId.Tuple)
                     .And.HaveVariable("y1v").WithNoTypes()
@@ -2584,7 +2572,7 @@ fob2 = []
 oar2 = fob2 * 100";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("y").WithDescription("tuple")
                     .And.HaveVariable("y1").WithDescription("tuple[int]")
                     .And.HaveVariable("oar").WithDescription("list[int]")
@@ -2608,7 +2596,7 @@ fob2 = []
 oar2 = 100 * fob2";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("y").WithDescription("tuple")
                     .And.HaveVariable("y1").WithDescription("tuple[int]")
                     .And.HaveVariable("oar").WithDescription("list[int]")
@@ -2642,7 +2630,7 @@ r2 = 100 not in a_string
 ";
 
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable2X)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveVariable("t1").OfType(BuiltinTypeId.Bool)
                     .And.HaveVariable("t2").OfType(BuiltinTypeId.Bool)
                     .And.HaveVariable("l1").OfType(BuiltinTypeId.Bool)
@@ -2671,7 +2659,7 @@ class SomeClass:
 ";
 
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(text);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(text);
                 analysis.Should().HaveClass("SomeClass").WithFunction("f")
                     .Which.Should().HaveParameter("self").WithValue<InstanceInfo>()
                     .Which.Should().HaveMember<InstanceInfo>("fob")
@@ -3511,7 +3499,7 @@ def m(x = math.atan2(1, 0)): pass
 ";
 
             using (var server = await CreateServerAsync()) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 
                 var tests = new[] {
                     new { FuncName = "f", DefaultValue = "None" },
@@ -3560,7 +3548,7 @@ for v in vs:
     print(v)";
 
 
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("iter").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("k").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("iterk").OfType(BuiltinTypeId.Int)
@@ -3578,7 +3566,7 @@ f(x)
 y = xget
 z = xpop";
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(code);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("y").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("z").OfType(BuiltinTypeId.Int);
 
@@ -3592,7 +3580,7 @@ def f(z):
 f(x)
 fob = abc";
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(code);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("fob")
                     .OfType(BuiltinTypeId.Tuple)
                     .WithDescription("tuple[int]");
@@ -3610,7 +3598,7 @@ for iter in iters:
 for itm in itms:
     print(itm)";
 
-                analysis = await server.SendDidChangeTextDocumentAndGetAnalysisAsync(code);
+                analysis = await server.ChangeDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("iter").OfType(BuiltinTypeId.Tuple).WithDescription("tuple[int]")
                     .And.HaveVariable("itm").OfType(BuiltinTypeId.Tuple).WithDescription("tuple[int]");
             }
@@ -6992,7 +6980,8 @@ keywords_from_fob_2 = fob_2.keywords
                 "result_4",
                 "args_from_fob_1"
             }) {
-                var result = entry.GetValue<SequenceInfo>(name);
+                entry.AssertDescription(name, "tuple[int, float, str, list]");
+                var result = entry.GetValue<AnalysisValue>(name);
                 Console.WriteLine("{0} = {1}", name, result);
                 AssertTupleContains(result, BuiltinTypeId.Int, BuiltinTypeId.Float, entry.BuiltinTypeId_Str, BuiltinTypeId.List);
             }
@@ -7054,18 +7043,21 @@ test1_result = test1()
             state.AssertIsInstance("test2a.test_attr", BuiltinTypeId.Int);
         }
 
-        private static void AssertTupleContains(SequenceInfo tuple, params BuiltinTypeId[] id) {
+        private static void AssertTupleContains(AnalysisValue tuple, params BuiltinTypeId[] id) {
+            var indexTypes = (tuple as SequenceInfo)?.IndexTypes?.Select(v => v.TypesNoCopy).ToArray() ??
+                (tuple as ProtocolInfo)?.GetProtocols<TupleProtocol>()?.FirstOrDefault()?._values;
+            Assert.IsNotNull(indexTypes);
+
             var expected = string.Join(", ", id);
-            var actual = string.Join(", ", tuple.IndexTypes.Select(t => {
-                var t2 = t.TypesNoCopy;
-                if (t2.Count == 1) {
-                    return t2.Single().TypeId.ToString();
+            var actual = string.Join(", ", indexTypes.Select(t => {
+                if (t.Count == 1) {
+                    return t.Single().TypeId.ToString();
                 } else {
-                    return "{" + string.Join(", ", t2.Select(t3 => t3.TypeId).OrderBy(t3 => t3)) + "}";
+                    return "{" + string.Join(", ", t.Select(t2 => t2.TypeId).OrderBy(t2 => t2)) + "}";
                 }
             }));
-            if (tuple.IndexTypes
-                .Zip(id, (t1, id2) => t1.TypesNoCopy.Count == 1 && t1.TypesNoCopy.Single().TypeId == id2)
+            if (indexTypes
+                .Zip(id, (t1, id2) => t1.Count == 1 && t1.Single().TypeId == id2)
                 .Any(b => !b)) {
                 Assert.Fail(string.Format("Expected <{0}>. Actual <{1}>.", expected, actual));
             }
@@ -7494,7 +7486,7 @@ y = mcc()
             var code = @"import os.path as P
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveClassInfo("P")
                     .Which.Should().HaveMembers("abspath", "dirname");
             }
@@ -7512,11 +7504,36 @@ class Employee(NamedTuple):
 e = Employee('Guido')
 ";
             using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(code);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
                 analysis.Should().HaveVariable("e").WithValue<InstanceInfo>()
                     .Which.Should().HaveOnlyMembers("name", "id", "__doc__", "__class__");
             }
         }
+
+        [TestMethod, Priority(0)]
+        public async Task CrossModuleUnassignedImport() {
+            using (var server = await CreateServerAsync(PythonVersions.LatestAvailable)) {
+                // Hack to avoid creation of the real files
+                // Project entries are explicitly added to the server before DidOpenTextDocument is called
+                var path1 = TestData.GetTestSpecificPath(@"p\__init__.py");
+                var path2 = TestData.GetTestSpecificPath(@"p\m.py");
+                var uri1 = new Uri(path1);
+                var uri2 = new Uri(path2);
+                server.ProjectFiles.GetOrAddEntry(uri1, server.Analyzer.AddModule("p", path1, uri1));
+                server.ProjectFiles.GetOrAddEntry(uri2, server.Analyzer.AddModule("p.m", path2, uri2));
+                // End of hack
+
+                await server.SendDidOpenTextDocument(uri1, "from . import m; m.X; m.Z; W = 1");
+                await server.SendDidOpenTextDocument(uri2, "from . import Y, W; Z = 1");
+
+                await server.GetAnalysisAsync(uri1);
+                await server.GetAnalysisAsync(uri2);
+
+                var completions = await server.SendCompletion(uri1, 0, 19);
+                completions.Should().HaveLabels("Z", "W").And.NotContainLabels("X", "Y");
+            }
+        }
+
         #endregion
 
         #region Helpers
@@ -7525,7 +7542,6 @@ e = Employee('Guido')
             configuration.AssertInstalled();
 
             var server = await new Server().InitializeAsync(configuration);
-            server.Analyzer.EnableDiagnostics = true;
             server.Analyzer.EnableDiagnostics = true;
             server.Analyzer.Limits = GetLimits();
 

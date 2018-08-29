@@ -25,8 +25,10 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public class MutateStdLibTest {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
-        public void TestInitialize() => TestEnvironmentImpl.TestInitialize();
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
 
         [TestCleanup]
         public void TestCleanup() => TestEnvironmentImpl.TestCleanup();

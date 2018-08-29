@@ -33,10 +33,12 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public class ThreadingTest {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
         public void TestInitialize() {
             AnalysisLog.Reset();
-            TestEnvironmentImpl.TestInitialize();
+            TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
         }
 
         [TestCleanup]

@@ -68,6 +68,19 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
             return null;
         }
 
+        public static string GetAssertCollectionNotContainMessage<T>(T[] actual, T[] expectedMissing, string name, string itemNameSingle, string itemNamePlural, Func<T[], string> itemsFormatter = null) {
+            itemsFormatter = itemsFormatter ?? AssertCollectionDefaultItemsFormatter;
+            var intersect = expectedMissing.Intersect(actual).ToArray();
+
+            if (intersect.Length > 0) {
+                return expectedMissing.Length > 1
+                    ? $"Expected {name} to not contain {itemNamePlural}{itemsFormatter(expectedMissing)}{{reason}}, but it contains {itemsFormatter(intersect)}."
+                    : $"Expected {name} to not contain {itemNameSingle}'{expectedMissing[0]}'{{reason}}.";
+            }
+
+            return null;
+        }
+
         public static string GetAssertCollectionOnlyContainsMessage<T>(T[] actual, T[] expected, string name, string itemNameSingle, string itemNamePlural, Func<T[], string> itemsFormatter = null) {
             itemsFormatter = itemsFormatter ?? AssertCollectionDefaultItemsFormatter;
             var message = GetAssertCollectionContainsMessage(actual, expected, name, itemNameSingle, itemNamePlural, itemsFormatter);

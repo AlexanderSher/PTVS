@@ -42,10 +42,10 @@ using static Microsoft.PythonTools.Analysis.Infrastructure.StringExtensions;
 namespace AnalysisTests {
     [TestClass]
     public class AstAnalysisTests {
-        [TestInitialize]
-        public void TestInitialize() => TestEnvironmentImpl.TestInitialize();
-
         public TestContext TestContext { get; set; }
+
+        [TestInitialize]
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
 
         private string _analysisLog;
         private string _moduleCache;
@@ -74,7 +74,7 @@ namespace AnalysisTests {
         private static AstPythonInterpreterFactory CreateInterpreterFactory(InterpreterConfiguration configuration) {
             configuration.AssertInstalled();
             var opts = new InterpreterFactoryCreationOptions {
-                DatabasePath = TestData.GetTempPath("AstAnalysisCache"),
+                DatabasePath = TestData.GetAstAnalysisCachePath(configuration.Version, true),
                 UseExistingCache = false
             };
 
@@ -174,9 +174,7 @@ namespace AnalysisTests {
         [TestMethod, Priority(0)]
         public async Task AstValues() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "from Values import *");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("from Values import *");
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfTypes(BuiltinTypeId.Str)
@@ -200,9 +198,7 @@ namespace AnalysisTests {
         [TestMethod, Priority(0)]
         public async Task AstMultiValues() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "from MultiValues import *");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("from MultiValues import *");
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfTypes(BuiltinTypeId.Str)
@@ -225,14 +221,14 @@ namespace AnalysisTests {
         [TestMethod, Priority(0)]
         public async Task AstReturnTypes() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from ReturnValues import *
+                var code = @"from ReturnValues import *
 R_str = r_str()
 R_object = r_object()
 R_A1 = A()
 R_A2 = A().r_A()
-R_A3 = R_A1.r_A()");
-                var analysis = await server.GetAnalysisAsync(uri);
+R_A3 = R_A1.r_A()";
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
+
                 analysis.Should().HaveFunctionVariables("r_a", "r_b", "r_str", "r_object")
                     .And.HaveClassVariables("A")
                     .And.HaveVariable("R_str").OfTypes(BuiltinTypeId.Str)
@@ -246,9 +242,7 @@ R_A3 = R_A1.r_A()");
         [TestMethod, Priority(0)]
         public async Task AstInstanceMembers() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "from InstanceMethod import f1, f2");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("from InstanceMethod import f1, f2");
 
                 analysis.Should().HaveVariable("f1").OfType(BuiltinTypeId.BuiltinFunction).WithValue<BuiltinFunctionInfo>()
                     .And.HaveVariable("f2").OfType(BuiltinTypeId.BuiltinMethodDescriptor).WithValue<BoundBuiltinMethodInfo>();
@@ -258,9 +252,7 @@ R_A3 = R_A1.r_A()");
         [TestMethod, Priority(0)]
         public async Task AstInstanceMembers_Random() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "from random import *");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("from random import *");
 
                 foreach (var fnName in new[] { "seed", "randrange", "gauss" }) {
                     analysis.Should().HaveVariable(fnName)
@@ -274,9 +266,7 @@ R_A3 = R_A1.r_A()");
         [TestMethod, Priority(0)]
         public async Task AstLibraryMembers_Datetime() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import datetime");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("import datetime");
 
                 var datetimeType = analysis.Should().HavePythonModuleVariable("datetime")
                     .Which.Should().HaveClass("datetime")
@@ -302,9 +292,7 @@ class BankAccount(object):
 ";
 
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveClass("BankAccount")
                     .Which.Should().HaveVariable("overdrawn").WithValue<FunctionInfo>()
@@ -368,10 +356,9 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task AstTypeStubPaths_NoStubs() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync("import Package.Module\n\nc = Package.Module.Class()");
                 await server.GetAnalysisAsync(uri);
-                
+
                 server.Analyzer.Limits = new AnalysisLimits {
                     UseTypeStubPackages = false
                 };
@@ -397,10 +384,9 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task AstTypeStubPaths_MergeStubs() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync("import Package.Module\n\nc = Package.Module.Class()");
                 await server.GetAnalysisAsync(uri);
-                
+
                 server.Analyzer.Limits = new AnalysisLimits {
                     UseTypeStubPackages = true,
                     UseTypeStubPackagesExclusively = false
@@ -427,10 +413,9 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task AstTypeStubPaths_MergeStubsPath() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync("import Package.Module\n\nc = Package.Module.Class()");
                 await server.GetAnalysisAsync(uri);
-                
+
                 server.Analyzer.SetTypeStubPaths(new[] { TestData.GetPath("TestData\\AstAnalysis\\Stubs") });
                 server.EnqueueItem(uri);
 
@@ -453,8 +438,7 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task AstTypeStubPaths_ExclusiveStubs() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import Package.Module\n\nc = Package.Module.Class()");
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync("import Package.Module\n\nc = Package.Module.Class()");
                 await server.GetAnalysisAsync(uri);
 
                 server.Analyzer.Limits = new AnalysisLimits {
@@ -519,9 +503,7 @@ class BankAccount(object):
 
             Console.WriteLine("Using {0}", version.PrefixPath);
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import numpy.core.numeric as NP; ndarray = NP.ndarray");
-                var analysis = await server.GetAnalysisAsync(uri, 15000);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("import numpy.core.numeric as NP; ndarray = NP.ndarray");
 
                 analysis.Should().HaveVariable("ndarray").WithValue<BuiltinClassInfo>();
             }
@@ -530,9 +512,7 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task ScrapedSpecialFloats() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, "import math; inf = math.inf; nan = math.nan");
-                var analysis = await server.GetAnalysisAsync(uri, 15000);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync("import math; inf = math.inf; nan = math.nan");
 
                 analysis.Should().HaveVariable("math")
                     .And.HaveVariable("inf").OfType(BuiltinTypeId.Float).WithValue<NumericInstanceInfo>()
@@ -838,7 +818,7 @@ class BankAccount(object):
         private async Task FullStdLibTest(InterpreterConfiguration configuration, params string[] skipModules) {
             configuration.AssertInstalled();
             var factory = new AstPythonInterpreterFactory(configuration, new InterpreterFactoryCreationOptions {
-                DatabasePath = TestData.GetTempPath(),
+                DatabasePath = TestData.GetAstAnalysisCachePath(configuration.Version, true),
                 UseExistingCache = false
             });
             var modules = ModulePath.GetModulesInLib(configuration.PrefixPath).ToList();
@@ -930,11 +910,10 @@ class BankAccount(object):
         [TestMethod, Priority(0)]
         public async Task AstTypeAnnotationConversion() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from ReturnAnnotations import *
+                var code = @"from ReturnAnnotations import *
 x = f()
-y = g()");
-                var analysis = await server.GetAnalysisAsync(uri);
+y = g()";
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Int)
                     .And.HaveVariable("y").OfTypes(BuiltinTypeId.Str)
@@ -950,13 +929,13 @@ y = g()");
         [TestMethod, Priority(0)]
         public async Task TypeShedElementTree() {
             using (var server = await CreateServerAsync()) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import xml.etree.ElementTree as ET
+                var code = @"import xml.etree.ElementTree as ET
 
 e = ET.Element()
 e2 = e.makeelement()
 iterfind = e.iterfind
-l = iterfind()");
+l = iterfind()";
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync(code);
                 var analysis = await server.GetAnalysisAsync(uri);
                 var elementSignatures = await server.SendSignatureHelp(uri, 2, 15);
                 var makeelementSignatures = await server.SendSignatureHelp(uri, 3, 19);
@@ -978,9 +957,7 @@ l = iterfind()");
 
             using (var server = await CreateServerAsync()) {
                 server.Analyzer.Limits = new AnalysisLimits {UseTypeStubPackages = false};
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import urllib");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"import urllib");
 
                 firstMembers = server.Analyzer.GetModuleMembers(analysis.InterpreterContext, new[] {"urllib"})
                     .Select(m => m.Name)
@@ -991,9 +968,7 @@ l = iterfind()");
 
             using (var server = await CreateServerAsync()) {
                 server.Analyzer.SetTypeStubPaths(new [] { TypeShedPath });
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import urllib");
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"import urllib");
 
                 var secondMembers = server.Analyzer.GetModuleMembers(analysis.InterpreterContext, new[] { "urllib" })
                     .Select(m => m.Name)
@@ -1007,11 +982,10 @@ l = iterfind()");
         public async Task TypeShedSysExcInfo() {
             using (var server = await CreateServerAsync()) {
                 server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import sys
+                var code = @"import sys
 
-e1, e2, e3 = sys.exc_info()");
-                var analysis = await server.GetAnalysisAsync(uri);
+e1, e2, e3 = sys.exc_info()";
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("e1").OfTypes(BuiltinTypeId.Type)
                     .And.HaveVariable("e2").OfTypes("BaseException")
@@ -1028,11 +1002,10 @@ e1, e2, e3 = sys.exc_info()");
         public async Task TypeShedJsonMakeScanner() {
             using (var server = await CreateServerAsync()) {
                 server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import _json
+                var code = @"import _json
 
-scanner = _json.make_scanner()");
-                var analysis = await server.GetAnalysisAsync(uri);
+scanner = _json.make_scanner()";
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("scanner").WithValue<BuiltinInstanceInfo>()
                     .Which.Should().HaveSingleOverload()
@@ -1050,8 +1023,7 @@ scanner = _json.make_scanner()");
                 server.Analyzer.SetTypeStubPaths(new[] {TypeShedPath});
                 server.Analyzer.Limits = new AnalysisLimits { UseTypeStubPackages = true, UseTypeStubPackagesExclusively = true };
 
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"import sys
+                var code = @"import sys
 
 l_1 = sys.argv
 
@@ -1067,8 +1039,8 @@ i_2 = sys.flags.quiet
 i_3 = sys.implementation.version.major
 i_4 = sys.getsizeof(None)
 i_5 = sys.getwindowsversion().platform_version[0]
-");
-                var analysis = await server.GetAnalysisAsync(uri);
+";
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("l_1").OfTypes(BuiltinTypeId.List)
                     .And.HaveVariable("s_1").OfTypes(BuiltinTypeId.Str)

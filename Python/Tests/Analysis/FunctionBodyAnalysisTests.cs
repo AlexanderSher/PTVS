@@ -30,6 +30,14 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public class FunctionBodyAnalysisTests {
+        public TestContext TestContext { get; set; }
+
+        [TestInitialize]
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
+
+        [TestCleanup]
+        public void TestCleanup() => TestEnvironmentImpl.TestCleanup();
+
         [TestMethod, Priority(0)]
         public async Task ParameterInfoSet() {
             var code = @"def f(a, b):
@@ -40,9 +48,7 @@ a = 7.28
 b = 3.14
 ";
             using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveFunction("f")
                     .Which.Should()
@@ -63,9 +69,7 @@ r_b = f(b=1, a=3.14)
 r_a = f(1, 3.14)
 ";
             using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should()
                         .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
@@ -100,9 +104,7 @@ r_b = g(y=1, x=3.14)
 r_a = g(1, 3.14)
 ";
             using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should()
                         .HaveVariable("r_a").OfType(BuiltinTypeId.Int)
@@ -147,9 +149,7 @@ c = f(C())
 d = f(D())";
 
             using (var server = await new Server().InitializeAsync(PythonVersions.LatestAvailable3X)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("c").OfType(BuiltinTypeId.Int)
                     .And.HaveVariable("d").OfType(BuiltinTypeId.Float)

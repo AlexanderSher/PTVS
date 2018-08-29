@@ -28,8 +28,10 @@ namespace AnalysisTests {
     /// </summary>
     [TestClass]
     public class TokenizerRoundTripTest {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
-        public void TestInitialize() => TestEnvironmentImpl.TestInitialize();
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
 
         [TestCleanup]
         public void TestCleanup() => TestEnvironmentImpl.TestCleanup();

@@ -18,12 +18,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using Microsoft.PythonTools.Analysis.Values;
+using Microsoft.PythonTools.Analysis.Analyzer;
 using Microsoft.PythonTools.Analysis.Infrastructure;
-using Microsoft.PythonTools.Interpreter;
-using System.IO;
 using Microsoft.PythonTools.Analysis.LanguageServer;
+using Microsoft.PythonTools.Analysis.Values;
+using Microsoft.PythonTools.Interpreter;
 
 namespace Microsoft.PythonTools.Analysis {
     public struct MemberResult {
@@ -38,6 +37,7 @@ namespace Microsoft.PythonTools.Analysis {
         #region Constructors
         internal MemberResult(string name, IEnumerable<AnalysisValue> vars) {
             Name = Completion = name;
+            Scope = null;
             _vars = new Lazy<IEnumerable<AnalysisValue>>(() => vars.MaybeEnumerate());
             _type = UnknownType;
             _type = new Lazy<PythonMemberType>(GetMemberType);
@@ -45,14 +45,19 @@ namespace Microsoft.PythonTools.Analysis {
 
         public MemberResult(string name, PythonMemberType type) {
             Name = Completion = name;
+            Scope = null;
             _type = new Lazy<PythonMemberType>(() => type);
             _vars = EmptyValues;
         }
 
-        public MemberResult(string name, string completion, IEnumerable<AnalysisValue> vars, PythonMemberType? type) {
+        public MemberResult(string name, string completion, IEnumerable<AnalysisValue> vars, PythonMemberType? type) :
+            this(name, completion, null, vars, type) { }
+
+        internal MemberResult(string name, string completion, InterpreterScope scope, IEnumerable<AnalysisValue> vars, PythonMemberType? type) {
             Name = name;
             _vars = new Lazy<IEnumerable<AnalysisValue>>(() => vars.MaybeEnumerate());
             Completion = completion;
+            Scope = scope;
             _type = UnknownType;
             if (type != null) {
                 _type = new Lazy<PythonMemberType>(() => type.Value);
@@ -63,17 +68,17 @@ namespace Microsoft.PythonTools.Analysis {
 
         internal MemberResult(string name, Func<IEnumerable<AnalysisValue>> vars, Func<PythonMemberType> type) {
             Name = Completion = name;
+            Scope = null;
             _vars = vars == null ? EmptyValues : new Lazy<IEnumerable<AnalysisValue>>(vars);
             _type = type == null ? UnknownType : new Lazy<PythonMemberType>(type);
         }
         #endregion
 
-        public MemberResult FilterCompletion(string completion) {
-            return new MemberResult(Name, completion, Values, MemberType);
-        }
+        public MemberResult FilterCompletion(string completion) => new MemberResult(Name, completion, Values, MemberType);
 
         public string Name { get; }
         public string Completion { get; }
+        internal InterpreterScope Scope { get; }
 
         /// <summary>
         /// Gets the location(s) for the member(s) if they are available.

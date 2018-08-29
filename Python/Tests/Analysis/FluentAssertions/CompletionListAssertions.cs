@@ -67,5 +67,23 @@ namespace Microsoft.PythonTools.Analysis.FluentAssertions {
 
             return new AndConstraint<CompletionListAssertions>(this);
         }
+
+        public AndConstraint<CompletionListAssertions> NotContainLabels(params string[] labels)
+            => NotContainLabels(labels, string.Empty);
+
+        public AndConstraint<CompletionListAssertions> NotContainLabels(IEnumerable<string> labels, string because = "", params object[] reasonArgs) {
+            NotBeNull(because, reasonArgs);
+
+            var actual = Subject.items?.Select(i => i.label).ToArray() ?? new string[0];
+            var expected = labels.ToArray();
+
+            var errorMessage = GetAssertCollectionNotContainMessage(actual, expected, "completion list items", "label ", "labels ");
+
+            Execute.Assertion.ForCondition(errorMessage == null)
+                .BecauseOf(because, reasonArgs)
+                .FailWith(errorMessage);
+
+            return new AndConstraint<CompletionListAssertions>(this);
+        }
     }
 }

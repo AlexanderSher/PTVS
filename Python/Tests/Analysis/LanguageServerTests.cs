@@ -39,8 +39,10 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public class LanguageServerTests {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
-        public void TestInitialize() => TestEnvironmentImpl.TestInitialize();
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
 
         [TestCleanup]
         public void TestCleanup() => TestEnvironmentImpl.TestCleanup();
@@ -80,7 +82,7 @@ namespace AnalysisTests {
             s.OnLogMessage += Server_OnLogMessage;
             var properties = new InterpreterFactoryCreationOptions {
                 TraceLevel = System.Diagnostics.TraceLevel.Verbose,
-                DatabasePath = TestData.GetTempPath($"AstAnalysisCache{configuration.Version}")
+                DatabasePath = TestData.GetAstAnalysisCachePath(configuration.Version)
             }.ToDictionary();
             configuration.WriteToDictionary(properties);
 
@@ -381,6 +383,18 @@ namespace AnalysisTests {
             await AssertCompletion(s, u, new[] { "as" }, new[] { "abs", "dir" }, new SourceLocation(1, 8));
             await AssertNoCompletion(s, u, new SourceLocation(1, 11));
             await s.UnloadFileAsync(u);
+        }
+
+        [TestMethod, Priority(0)]
+        public async Task CompletionInWithStatementDerivedClass() {
+            using (var server = await CreateServer()) {
+                var uri = await server.OpenDefaultDocumentAndGetUriAsync("with open(x) as fs:\n  fs. ");
+                await server.GetAnalysisAsync(uri);
+                var completions = await server.SendCompletion(uri, 1, 5);
+
+                completions.Should().HaveLabels("read", "write");
+                await server.UnloadFileAsync(uri);
+            }
         }
 
         [TestMethod, Priority(0)]

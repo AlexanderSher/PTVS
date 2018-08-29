@@ -36,8 +36,10 @@ using TestUtilities;
 namespace AnalysisTests {
     [TestClass]
     public class TypeAnnotationTests {
+        public TestContext TestContext { get; set; }
+
         [TestInitialize]
-        public void TestInitialize() => TestEnvironmentImpl.TestInitialize();
+        public void TestInitialize() => TestEnvironmentImpl.TestInitialize($"{TestContext.FullyQualifiedTestClassName}.{TestContext.TestName}");
 
         [TestCleanup]
         public void TestCleanup() => TestEnvironmentImpl.TestCleanup();
@@ -126,11 +128,8 @@ namespace AnalysisTests {
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleContainerAnalysis() {
-            var configuration = PythonVersions.Required_Python34X;
-            configuration.AssertInstalled();
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from typing import *
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python34X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"from typing import *
 
 i : SupportsInt = ...
 lst : List = ...
@@ -153,7 +152,6 @@ dctv_s_i_value = next(iter(dctv_s_i_values))
 dctv_s_i_items : ItemsView[str, int] = ...
 dctv_s_i_item_1, dctv_s_i_item_2 = next(iter(dctv_s_i_items))
 ");
-                var analysis = await server.GetAnalysisAsync(uri);
 
                 analysis.ProjectState.Modules.TryGetImportedModule("typing", out var module).Should().BeTrue();
                 module.AnalysisModule.Should().BeOfType<TypingModuleInfo>();
@@ -186,7 +184,7 @@ dctv_s_i_item_1, dctv_s_i_item_2 = next(iter(dctv_s_i_items))
         public async Task TypingModuleProtocolAnalysis() {
             var configuration = PythonVersions.Required_Python36X;
             using (var server = await new Server().InitializeAsync(configuration)) {
-                var analysis = await server.SendDidOpenTextDocumentAndGetAnalysisAsync(@"from typing import *
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"from typing import *
 
 i : Iterable = ...
 ii : Iterator = ...
@@ -215,10 +213,8 @@ call_iis_i_ret = call_iis_i()
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNamedTupleAnalysis() {
-            var configuration = PythonVersions.Required_Python36X;
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from typing import *
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"from typing import *
 
 n : NamedTuple = ...
 n1 : NamedTuple('n1', [('x', int), ['y', float]]) = ...
@@ -244,7 +240,6 @@ i = 1
 n1_i = n1[i]
 n2_i = n2[i]
 ");
-                var analysis = await server.GetAnalysisAsync(uri);
 
                 analysis.Should().HaveVariable("n").WithDescription("tuple")
                     .And.HaveVariable("n1").WithDescription("n1(x: int, y: float)")
@@ -272,10 +267,8 @@ n2_i = n2[i]
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNamedTypeAlias() {
-            var configuration = PythonVersions.Required_Python36X;
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from typing import *
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"from typing import *
 
 MyInt = int
 MyStrList = List[str]
@@ -286,7 +279,7 @@ sl : MyStrList = ...
 sl_0 = sl[0]
 n1 : MyNamedTuple = ...
 ");
-                var analysis = await server.GetAnalysisAsync(uri);
+
                 analysis.GetValues("n1.x", SourceLocation.MinValue);
 
                 analysis.Should().HaveVariable("i").OfType(BuiltinTypeId.Int)
@@ -302,10 +295,8 @@ n1 : MyNamedTuple = ...
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleNestedIndex() {
-            var configuration = PythonVersions.Required_Python36X;
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, @"from typing import *
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(@"from typing import *
 
 MyList = List[List[str]]
 
@@ -313,7 +304,7 @@ l_l_s : MyList = ...
 l_s = l_l_s[0]
 s = l_s[0]
 ");
-                var analysis = await server.GetAnalysisAsync(uri);
+
                 analysis.Should().HaveVariable("l_l_s").OfType(BuiltinTypeId.List).
                     And.HaveVariable("l_s").OfType(BuiltinTypeId.List).
                     And.HaveVariable("s").OfType(BuiltinTypeId.Str);
@@ -322,7 +313,6 @@ s = l_s[0]
 
         [TestMethod, Priority(0)]
         public async Task TypingModuleGenerator() {
-            var configuration = PythonVersions.Required_Python36X;
             var code = @"from typing import *
 
 gen : Generator[str, None, int] = ...
@@ -333,10 +323,8 @@ def g():
 g_g = g()
 g_i = next(g_g)
 ";
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("g_g").OfType(BuiltinTypeId.Generator)
                     .And.HaveVariable("g_i").OfType(BuiltinTypeId.Str)
@@ -347,16 +335,13 @@ g_i = next(g_g)
 
         [TestMethod, Priority(0)]
         public async Task FunctionAnnotation() {
-            var configuration = PythonVersions.Required_Python36X;
             var code = @"
 def f(a : int, b : float) -> str: pass
 
 x = f()
 ";
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 analysis.Should().HaveVariable("x").OfTypes(BuiltinTypeId.Str)
                     .And.HaveVariable("f").WithValue<FunctionInfo>()
@@ -368,11 +353,8 @@ x = f()
         }
 
         private async Task TypingModuleDocumentationExampleAsync(string code, IEnumerable<string> signatures) {
-            var configuration = PythonVersions.Required_Python36X;
-            using (var server = await new Server().InitializeAsync(configuration)) {
-                var uri = TestData.GetTempPathUri("test-module.py");
-                await server.SendDidOpenTextDocument(uri, code);
-                var analysis = await server.GetAnalysisAsync(uri);
+            using (var server = await new Server().InitializeAsync(PythonVersions.Required_Python36X)) {
+                var analysis = await server.OpenDefaultDocumentAndGetAnalysisAsync(code);
 
                 foreach (var sig in signatures) {
                     int i = sig.IndexOf(':');
